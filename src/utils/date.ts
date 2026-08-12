@@ -121,3 +121,30 @@ export function formatarMoeda(value: number | null | undefined): string {
     currency: 'BRL',
   }).format(value);
 }
+
+/**
+ * Safely parses price string into a float number.
+ * Handles format like "49,90", "49.90", "R$ 49,90", "1.250,50"
+ */
+export function parsePrecoString(input: string | number | null | undefined): number | null {
+  if (input === null || input === undefined) return null;
+  if (typeof input === 'number') return isNaN(input) ? null : input;
+
+  let str = String(input).replace('R$', '').trim();
+  if (!str) return null;
+
+  if (str.includes(',')) {
+    // Thousands dot, decimal comma (e.g. "1.250,50" or "49,90")
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if (str.includes('.')) {
+    // If no comma, check if multiple dots
+    const dotCount = (str.match(/\./g) || []).length;
+    if (dotCount > 1) {
+      str = str.replace(/\./g, '');
+    }
+    // Single dot (e.g. "49.90") is left as is for parseFloat
+  }
+
+  const num = parseFloat(str);
+  return isNaN(num) ? null : num;
+}

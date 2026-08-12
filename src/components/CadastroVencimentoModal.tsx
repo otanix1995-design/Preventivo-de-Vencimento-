@@ -14,7 +14,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { converterParaGramas, gramasParaKgEGramas } from '../utils/quantity';
-import { calcularStatusVencimento } from '../utils/date';
+import { calcularStatusVencimento, parsePrecoString } from '../utils/date';
 
 interface CadastroVencimentoModalProps {
   isOpen: boolean;
@@ -39,7 +39,8 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
   const [dataVencimento, setDataVencimento] = useState('');
   const [quilos, setQuilos] = useState<string>('0');
   const [gramas, setGramas] = useState<string>('0');
-  const [unidades, setUnidades] = useState<string>('0');
+  const [qtdEmb1, setQtdEmb1] = useState<string>('0');
+  const [qtdEmb9, setQtdEmb9] = useState<string>('0');
   const [precoTrabalhadoStr, setPrecoTrabalhadoStr] = useState('');
   const [observacoes, setObservacoes] = useState('');
 
@@ -72,7 +73,8 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
     setDataVencimento('');
     setQuilos('0');
     setGramas('0');
-    setUnidades('0');
+    setQtdEmb1('0');
+    setQtdEmb9('0');
     setPrecoTrabalhadoStr('');
     setObservacoes('');
     setExistingDuplicate(null);
@@ -96,8 +98,11 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
       const { kg, g } = gramasParaKgEGramas(controle.quantidadeAtual);
       setQuilos(String(kg));
       setGramas(String(g));
+      setQtdEmb1(controle.qtdEmb1 !== undefined ? String(controle.qtdEmb1) : '0');
+      setQtdEmb9(controle.qtdEmb9 !== undefined ? String(controle.qtdEmb9) : '0');
     } else {
-      setUnidades(String(controle.quantidadeAtual));
+      setQtdEmb1(controle.qtdEmb1 !== undefined ? String(controle.qtdEmb1) : String(controle.quantidadeAtual));
+      setQtdEmb9(controle.qtdEmb9 !== undefined ? String(controle.qtdEmb9) : '0');
     }
   };
 
@@ -168,64 +173,47 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
         produto.tipoControle === 'NAO_IDENTIFICADO' ? 'UNIDADE' : produto.tipoControle;
 
       let qtdCalculada = 0;
+      const e1 = parseInt(qtdEmb1, 10) || 0;
+      const e9 = parseInt(qtdEmb9, 10) || 0;
+
       if (tipoControle === 'PESO') {
         const kgNum = parseFloat(quilos.replace(',', '.')) || 0;
         const gNum = parseInt(gramas, 10) || 0;
         qtdCalculada = converterParaGramas(kgNum, gNum);
       } else {
-        qtdCalculada = parseInt(unidades, 10) || 0;
+        qtdCalculada = e1 + e9;
       }
 
-      let precoNum: number | null = null;
-      if (precoTrabalhadoStr.trim()) {
-        const cleanPreco = precoTrabalhadoStr.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
-        const parsed = parseFloat(cleanPreco);
-        if (!isNaN(parsed)) {
-          precoNum = parsed;
-        }
-      }
-
+      const precoNum = parsePrecoString(precoTrabalhadoStr);
       const status = calcularStatusVencimento(dataVencimento);
+
+      const dataToSave = {
+        quantidadeAtual: qtdCalculada,
+        quantidadeInicial: qtdCalculada,
+        qtdEmb1: e1,
+        qtdEmb9: e9,
+        unidadeControle: tipoControle,
+        dataVencimento,
+        precoTrabalhado: precoNum,
+        status,
+        observacoes,
+        atualizadoEm: nowIso,
+      };
 
       if (initialControleToEdit) {
         // Update existing record
-        await db.controleVencimento.update(initialControleToEdit.id!, {
-          quantidadeAtual: qtdCalculada,
-          quantidadeInicial: qtdCalculada,
-          unidadeControle: tipoControle,
-          dataVencimento,
-          precoTrabalhado: precoNum,
-          status,
-          observacoes,
-          atualizadoEm: nowIso,
-        });
+        await db.controleVencimento.update(initialControleToEdit.id!, dataToSave);
       } else if (existingDuplicate && !forceCreateNew) {
         // User chose to update existing duplicate record
-        await db.controleVencimento.update(existingDuplicate.id!, {
-          quantidadeAtual: qtdCalculada,
-          quantidadeInicial: qtdCalculada,
-          unidadeControle: tipoControle,
-          dataVencimento,
-          precoTrabalhado: precoNum,
-          status,
-          observacoes,
-          atualizadoEm: nowIso,
-        });
+        await db.controleVencimento.update(existingDuplicate.id!, dataToSave);
       } else {
         // Create new record
         await db.controleVencimento.add({
           produtoId: produto.id,
           codigo: produto.codigo,
           dig: produto.dig,
-          quantidadeInicial: qtdCalculada,
-          quantidadeAtual: qtdCalculada,
-          unidadeControle: tipoControle,
-          dataVencimento,
-          precoTrabalhado: precoNum,
-          status,
-          observacoes,
+          ...dataToSave,
           criadoEm: nowIso,
-          atualizadoEm: nowIso,
         });
       }
 
@@ -398,19 +386,52 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
               ) : (
                 <div>
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    QUANTIDADE PRÓXIMA DO VENCIMENTO (UNIDADES) *
+                    QUANTIDADES PRÓXIMAS DO VENCIMENTO (EMB1 / EMB9) *
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    placeholder="Ex: 130"
-                    value={unidades}
-                    onChange={(e) => setUnidades(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold focus:outline-none focus:border-amber-500"
-                  />
-                  <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-1">
-                    Visualização: {unidades || 0} unidades
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block mb-0.5">
+                        QUANTIDADE EMB1 (CXA/UN)
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="Ex: 4"
+                        value={qtdEmb1}
+                        onChange={(e) => setQtdEmb1(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm font-mono font-bold focus:outline-none focus:border-amber-500"
+                      />
+                      {produto?.estoqueEmb1 && (
+                        <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">
+                          Estoque total EMB1: {produto.estoqueEmb1}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block mb-0.5">
+                        QUANTIDADE EMB9 (CXA/UN)
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="Ex: 4"
+                        value={qtdEmb9}
+                        onChange={(e) => setQtdEmb9(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm font-mono font-bold focus:outline-none focus:border-amber-500"
+                      />
+                      {produto?.estoqueEmb9 && (
+                        <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">
+                          Estoque total EMB9: {produto.estoqueEmb9}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-2">
+                    Total em Vencimento: {(parseInt(qtdEmb1, 10) || 0) + (parseInt(qtdEmb9, 10) || 0)} caixas/unidades
                   </p>
                 </div>
               )}

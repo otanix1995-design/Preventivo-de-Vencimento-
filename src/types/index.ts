@@ -59,6 +59,8 @@ export interface ControleVencimento {
   dig: string;
   quantidadeInicial: number; // In grams for PESO or integer for UNIDADE
   quantidadeAtual: number;   // In grams for PESO or integer for UNIDADE
+  qtdEmb1?: number;           // Quantity in EMB1
+  qtdEmb9?: number;           // Quantity in EMB9
   unidadeControle: TipoControle;
   dataVencimento: string;    // YYYY-MM-DD
   precoTrabalhado: number | null; // e.g. 14.90

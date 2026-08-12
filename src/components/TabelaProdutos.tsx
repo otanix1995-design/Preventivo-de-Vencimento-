@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { ControleVencimento, Produto, StatusVencimento } from '../types';
-import { formatarDataBR, formatarMoeda, getStatusConfig } from '../utils/date';
+import { formatarDataBR, formatarMoeda, getStatusConfig, parsePrecoString } from '../utils/date';
 import { formatarQuantidade } from '../utils/quantity';
 import {
   Search,
@@ -117,9 +117,8 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
     if (!editingPriceInput.trim()) {
       onUpdatePrecoTrabalhado(controleId, null);
     } else {
-      const clean = editingPriceInput.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
-      const val = parseFloat(clean);
-      onUpdatePrecoTrabalhado(controleId, isNaN(val) ? null : val);
+      const val = parsePrecoString(editingPriceInput);
+      onUpdatePrecoTrabalhado(controleId, val);
     }
     setEditingPriceId(null);
   };
