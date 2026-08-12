@@ -1,0 +1,6 @@
+{
+  "name": "Controle de Vencimentos",
+  "description": "Aplicativo inteligente para controle de produtos próximos do vencimento com leitor EAN por câmera, importação Excel, cálculo de movimentação e relatórios PDF.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
