@@ -98,8 +98,13 @@ export function parseEstoqueExcelToNumeric(
     return Math.round(kg + g);
   }
 
-  // Standard numeric string e.g. "150,500" or "150"
-  const cleanStr = strVal.replace(/\./g, '').replace(',', '.');
+  // Parse numeric string format safely
+  let cleanStr = strVal;
+  if (cleanStr.includes(',')) {
+    // Brazilian format: "150.500,50" or "150,5" or "150,500"
+    cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
+  }
+
   const num = parseFloat(cleanStr);
   if (isNaN(num)) return 0;
 

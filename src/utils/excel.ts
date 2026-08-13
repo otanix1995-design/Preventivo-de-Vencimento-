@@ -347,6 +347,7 @@ export async function processarImportacaoExcel(
               const movimentacao = totalStockPrev - totalStockCurr;
 
               if (movimentacao > 0) {
+                // Stock decreased -> subtract movement from expiration controls
                 const controlesAtivos = await db.controleVencimento
                   .where({ produtoId: produtoObj.id })
                   .filter((c) => c.quantidadeAtual > 0)
@@ -362,13 +363,19 @@ export async function processarImportacaoExcel(
                     const qtdAnterior = ctrl.quantidadeAtual;
                     const valorDesconto = Math.min(qtdAnterior, decontoRestante);
                     const qtdNova = qtdAnterior - valorDesconto;
+                    
+                    // Check if movement exceeded controlled quantity
+                    const excesso = decontoRestante - valorDesconto;
                     decontoRestante -= valorDesconto;
 
+                    const teveAlerta = excesso > 0 || movimentacao > qtdAnterior;
                     const novoStatus = calcularStatusVencimento(ctrl.dataVencimento);
 
                     await db.controleVencimento.update(ctrl.id!, {
                       quantidadeAtual: qtdNova,
                       status: novoStatus,
+                      alertaMovimentacaoSuperior: teveAlerta,
+                      movimentacaoExcedente: excesso > 0 ? excesso : 0,
                       atualizadoEm: nowIso,
                     });
 
@@ -380,11 +387,36 @@ export async function processarImportacaoExcel(
                       estoqueAnteriorEmb9: prevStockHist.estoqueEmb9,
                       estoqueAtualEmb1: produtoObj.estoqueEmb1,
                       estoqueAtualEmb9: produtoObj.estoqueEmb9,
-                      movimentacaoIdentificada: valorDesconto,
+                      movimentacaoIdentificada: movimentacao,
                       quantidadeAnterior: qtdAnterior,
                       quantidadeNova: qtdNova,
+                      alertaMovimentacaoSuperior: teveAlerta,
+                      movimentacaoExcedente: excesso > 0 ? excesso : 0,
                     });
                   }
+                }
+              } else if (movimentacao < 0) {
+                // Stock increased -> log variation in history without altering controlled expiration quantity
+                const controlesDoProduto = await db.controleVencimento
+                  .where({ produtoId: produtoObj.id })
+                  .toArray();
+
+                if (controlesDoProduto.length > 0) {
+                  const firstCtrl = controlesDoProduto[0];
+                  await db.historicoMovimentacao.add({
+                    controleVencimentoId: firstCtrl.id!,
+                    importacaoId,
+                    dataHora: timestampStr,
+                    estoqueAnteriorEmb1: prevStockHist.estoqueEmb1,
+                    estoqueAnteriorEmb9: prevStockHist.estoqueEmb9,
+                    estoqueAtualEmb1: produtoObj.estoqueEmb1,
+                    estoqueAtualEmb9: produtoObj.estoqueEmb9,
+                    movimentacaoIdentificada: movimentacao,
+                    quantidadeAnterior: firstCtrl.quantidadeAtual,
+                    quantidadeNova: firstCtrl.quantidadeAtual, // Unchanged!
+                    alertaMovimentacaoSuperior: false,
+                    movimentacaoExcedente: 0,
+                  });
                 }
               }
             }

@@ -75,11 +75,13 @@ export const DetachedHistoryModal: React.FC<DetachedHistoryModalProps> = ({
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div>
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Quantidade Inicial</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{qtdInicialFmt}</span>
+                <span className="text-[10px] font-bold text-slate-400 block uppercase">Estoque Atual Excel</span>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                  {produto?.estoqueEmb1 || 0} / {produto?.estoqueEmb9 || 0}
+                </span>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Quantidade Atual</span>
+                <span className="text-[10px] font-bold text-slate-400 block uppercase">Qtd Próx. Vencimento</span>
                 <span className="font-black text-amber-600 dark:text-amber-400">{qtdAtualFmt}</span>
               </div>
               <div>
@@ -93,6 +95,18 @@ export const DetachedHistoryModal: React.FC<DetachedHistoryModalProps> = ({
                 </span>
               </div>
             </div>
+
+            {controle.alertaMovimentacaoSuperior && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 rounded-xl text-xs font-bold text-amber-800 dark:text-amber-200 space-y-1">
+                <p className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300">
+                  <span>⚠️</span>
+                  <span>MOVIMENTAÇÃO SUPERIOR À QUANTIDADE CONTROLADA</span>
+                </p>
+                <p className="text-[11px] font-normal text-amber-700/80 dark:text-amber-300/80">
+                  A movimentação de estoque identificada na última importação foi maior que a quantidade mantida neste controle. A quantidade controlada foi zerada para evitar estoque negativo. Favor revisar.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Timeline of Import Movements */}
@@ -111,33 +125,47 @@ export const DetachedHistoryModal: React.FC<DetachedHistoryModalProps> = ({
                   Nenhuma movimentação de estoque registrada por importação posterior.
                 </p>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Quando uma nova planilha Excel for importada e houver saída do estoque deste produto, a movimentação e o desconto serão listados aqui automaticamente.
+                  Quando uma nova planilha Excel for importada e houver variação no estoque deste produto, a movimentação e o desconto serão listados aqui automaticamente.
                 </p>
               </div>
             ) : (
               <div className="space-y-3 relative before:absolute before:inset-0 before:left-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
                 {movimentacoes.map((m) => {
-                  const movFmt = formatarQuantidade(m.movimentacaoIdentificada, controle.unidadeControle);
+                  const isReducao = m.movimentacaoIdentificada > 0;
+                  const absMov = Math.abs(m.movimentacaoIdentificada);
+                  const movFmt = formatarQuantidade(absMov, controle.unidadeControle);
                   const qtdAnteriorFmt = formatarQuantidade(m.quantidadeAnterior, controle.unidadeControle);
                   const qtdNovaFmt = formatarQuantidade(m.quantidadeNova, controle.unidadeControle);
 
                   return (
                     <div
                       key={m.id}
-                      className="relative pl-7 bg-white dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
+                      className="relative pl-7 bg-white dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2"
                     >
                       <div className="absolute left-1.5 top-4 w-3 h-3 rounded-full bg-amber-500 border-2 border-white dark:border-slate-900"></div>
 
-                      <div className="flex items-center justify-between text-xs mb-1">
+                      <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
                           <Clock className="w-3 h-3 text-amber-500" /> {m.dataHora}
                         </span>
-                        <span className="font-extrabold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <TrendingDown className="w-3 h-3" /> Movimentação: -{movFmt}
-                        </span>
+                        {isReducao ? (
+                          <span className="font-extrabold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <TrendingDown className="w-3 h-3" /> Movimentação (Saída): -{movFmt}
+                          </span>
+                        ) : (
+                          <span className="font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <span>↑</span> Aumento de Estoque: +{movFmt}
+                          </span>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100 dark:border-slate-800/80 mt-2">
+                      {m.alertaMovimentacaoSuperior && (
+                        <div className="p-2 bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 rounded-lg text-[10px] font-extrabold">
+                          ⚠️ MOVIMENTAÇÃO SUPERIOR À QUANTIDADE CONTROLADA
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100 dark:border-slate-800/80">
                         <div>
                           <span className="text-[10px] uppercase text-slate-400 font-bold block">
                             Estoque Excel (EMB1 / EMB9)
@@ -152,7 +180,7 @@ export const DetachedHistoryModal: React.FC<DetachedHistoryModalProps> = ({
 
                         <div>
                           <span className="text-[10px] uppercase text-slate-400 font-bold block">
-                            Desconto na Qtd Próxima
+                            Qtd Próxima do Vencimento
                           </span>
                           <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
                             <span>{qtdAnteriorFmt}</span>

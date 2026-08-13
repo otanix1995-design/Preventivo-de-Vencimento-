@@ -222,8 +222,8 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                 <th className="px-4 py-3">DESCRIÇÃO MERCADORIA</th>
                 <th className="px-3 py-3">EMBALAGEM</th>
                 <th className="px-3 py-3">COMPRADOR FILIAL</th>
-                <th className="px-2 py-3 text-right">EMB1</th>
-                <th className="px-2 py-3 text-right">EMB9</th>
+                <th className="px-2 py-3 text-center">ESTOQUE ATUAL</th>
+                <th className="px-3 py-3 text-center">QTD PRÓX. VENC.</th>
                 <th className="px-3 py-3 text-center">DATA VENC.</th>
                 <th className="px-3 py-3 text-right">PREÇO TRABALHADO</th>
                 <th className="px-3 py-3 text-center">STATUS</th>
@@ -242,6 +242,7 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                   const produto = produtosMap.get(item.produtoId);
                   const statusCfg = getStatusConfig(item.status);
                   const prioColor = getPriorityColor(item.dataVencimento, item.precoTrabalhado);
+                  const qtdVencFmt = formatarQuantidade(item.quantidadeAtual, item.unidadeControle);
 
                   return (
                     <tr
@@ -263,11 +264,23 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                       <td className="px-3 py-3 font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">
                         {produto?.compradorFilial || '-'}
                       </td>
-                      <td className="px-2 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
-                        {produto?.estoqueEmb1 || '0'}
+                      <td className="px-2 py-3 text-center font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                        <span className="text-[11px] font-bold">
+                          {produto?.estoqueEmb1 || '0'} <span className="text-slate-400">/</span> {produto?.estoqueEmb9 || '0'}
+                        </span>
                       </td>
-                      <td className="px-2 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
-                        {produto?.estoqueEmb9 || '0'}
+                      <td className="px-3 py-3 text-center whitespace-nowrap">
+                        <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-xs bg-amber-50 dark:bg-amber-950/80 px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-800">
+                          {qtdVencFmt}
+                        </span>
+                        {item.alertaMovimentacaoSuperior && (
+                          <span
+                            className="block text-[9px] font-extrabold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/80 px-1.5 py-0.5 rounded mt-1 shadow-2xs"
+                            title="⚠️ Movimentação do estoque foi maior que a quantidade controlada"
+                          >
+                            ⚠️ Mov. Superior
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-center whitespace-nowrap">
                         <span
@@ -368,6 +381,7 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
               const produto = produtosMap.get(item.produtoId);
               const statusCfg = getStatusConfig(item.status);
               const prioColor = getPriorityColor(item.dataVencimento, item.precoTrabalhado);
+              const qtdVencFmt = formatarQuantidade(item.quantidadeAtual, item.unidadeControle);
 
               return (
                 <div key={item.id} className="p-4 space-y-3">
@@ -405,14 +419,17 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                       </span>
                     </div>
                     <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Qtd Próx. Venc.</span>
+                      <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-xs">
+                        {qtdVencFmt}
+                      </span>
+                    </div>
+                    <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Vencimento</span>
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-black border ${prioColor.bgClass} ${prioColor.textClass} ${prioColor.borderClass}`}>
                         {formatarDataBR(item.dataVencimento)}
                       </span>
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Preço Trab.</span>
                       <span
@@ -424,7 +441,16 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                           : 'R$ -- (Editar)'}
                       </span>
                     </div>
+                  </div>
 
+                  {item.alertaMovimentacaoSuperior && (
+                    <div className="p-2 bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 rounded-xl text-[11px] font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>⚠️ MOVIMENTAÇÃO SUPERIOR À QUANTIDADE CONTROLADA</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => onViewHistory(item)}

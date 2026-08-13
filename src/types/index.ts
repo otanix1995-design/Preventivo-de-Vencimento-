@@ -66,6 +66,8 @@ export interface ControleVencimento {
   precoTrabalhado: number | null; // e.g. 14.90
   status: StatusVencimento;
   observacoes?: string;
+  alertaMovimentacaoSuperior?: boolean; // ⚠️ Warning when movimentacao > quantidadeControlada
+  movimentacaoExcedente?: number;       // Excess movement amount
   criadoEm: string;
   atualizadoEm: string;
 }
@@ -82,6 +84,8 @@ export interface HistoricoMovimentacao {
   movimentacaoIdentificada: number; // grams or units
   quantidadeAnterior: number;
   quantidadeNova: number;
+  alertaMovimentacaoSuperior?: boolean;
+  movimentacaoExcedente?: number;
 }
 
 export interface FiltroPdfOptions {
