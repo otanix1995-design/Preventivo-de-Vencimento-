@@ -13,8 +13,8 @@ import {
   Edit,
   Plus,
 } from 'lucide-react';
-import { converterParaGramas, gramasParaKgEGramas } from '../utils/quantity';
-import { calcularStatusVencimento, parsePrecoString } from '../utils/date';
+import { converterParaGramas, gramasParaKgEGramas, formatarQuantidade } from '../utils/quantity';
+import { calcularStatusVencimento, parsePrecoString, formatarDataBR } from '../utils/date';
 
 interface CadastroVencimentoModalProps {
   isOpen: boolean;
@@ -45,8 +45,11 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
   const [observacoes, setObservacoes] = useState('');
 
   // Duplicity Modal state
-  const [existingDuplicate, setExistingDuplicate] = useState<ControleVencimento | null>(null);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [sameDateDuplicate, setSameDateDuplicate] = useState<ControleVencimento | null>(null);
+  const [showSameDateDialog, setShowSameDateDialog] = useState(false);
+
+  const [existingDifferentControls, setExistingDifferentControls] = useState<ControleVencimento[]>([]);
+  const [showDifferentDateDialog, setShowDifferentDateDialog] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -77,8 +80,10 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
     setQtdEmb9('0');
     setPrecoTrabalhadoStr('');
     setObservacoes('');
-    setExistingDuplicate(null);
-    setShowDuplicateDialog(false);
+    setSameDateDuplicate(null);
+    setShowSameDateDialog(false);
+    setExistingDifferentControls([]);
+    setShowDifferentDateDialog(false);
     setIsSaving(false);
   };
 
@@ -147,23 +152,37 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
       return;
     }
 
-    // Check if duplicate entry exists (unless we are explicitly editing an existing record)
-    if (!initialControleToEdit) {
-      const dup = await db.controleVencimento
-        .where({ produtoId: produto.id, dataVencimento })
-        .first();
+    // Check all existing expiration controls for this product
+    const existingControls = await db.controleVencimento
+      .where({ produtoId: produto.id })
+      .toArray();
 
-      if (dup) {
-        setExistingDuplicate(dup);
-        setShowDuplicateDialog(true);
-        return;
-      }
+    // If editing, filter out the record currently being edited
+    const otherControls = initialControleToEdit
+      ? existingControls.filter((c) => c.id !== initialControleToEdit.id)
+      : existingControls;
+
+    // 1. Check for EXACT DUPLICATE (Same Code + Same DIG + Same Expiration Date)
+    const exactMatch = otherControls.find((c) => c.dataVencimento === dataVencimento);
+
+    if (exactMatch) {
+      setSameDateDuplicate(exactMatch);
+      setShowSameDateDialog(true);
+      return;
     }
 
-    await saveControleVencimento(false);
+    // 2. Check for SAME PRODUCT WITH DIFFERENT EXPIRATION DATES
+    if (otherControls.length > 0 && !initialControleToEdit) {
+      setExistingDifferentControls(otherControls);
+      setShowDifferentDateDialog(true);
+      return;
+    }
+
+    // 3. Different Code or no conflicts -> proceed to save
+    await saveControleVencimento();
   };
 
-  const saveControleVencimento = async (forceCreateNew = false) => {
+  const saveControleVencimento = async () => {
     if (!produto) return;
     setIsSaving(true);
 
@@ -203,11 +222,8 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
       if (initialControleToEdit) {
         // Update existing record
         await db.controleVencimento.update(initialControleToEdit.id!, dataToSave);
-      } else if (existingDuplicate && !forceCreateNew) {
-        // User chose to update existing duplicate record
-        await db.controleVencimento.update(existingDuplicate.id!, dataToSave);
       } else {
-        // Create new record
+        // Create new independent record
         await db.controleVencimento.add({
           produtoId: produto.id,
           codigo: produto.codigo,
@@ -472,53 +488,143 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
         </div>
       </div>
 
-      {/* Duplicate Entry Modal Dialog (Section 31) */}
-      {showDuplicateDialog && existingDuplicate && (
-        <div className="fixed inset-0 z-60 bg-slate-950/90 flex items-center justify-center p-4">
+      {/* 1. EXACT DUPLICATE DIALOG (Same Code + Same DIG + Same Expiration Date) */}
+      {showSameDateDialog && sameDateDuplicate && produto && (
+        <div className="fixed inset-0 z-60 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-slate-900 dark:text-white">
-            <div className="flex items-center gap-3 text-amber-500">
-              <AlertTriangle className="w-7 h-7 shrink-0" />
-              <h4 className="font-black text-lg">PRODUTO DUPLICADO</h4>
+            <div className="flex items-center gap-2.5 text-red-600 dark:text-red-500">
+              <span className="text-2xl leading-none">🔴</span>
+              <h4 className="font-black text-base leading-tight">
+                PRODUTO JÁ CADASTRADO PARA ESTA DATA
+              </h4>
             </div>
 
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Este produto já possui um registro cadastrado para a data de vencimento <strong className="text-amber-500">{dataVencimento}</strong>.
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Este produto já possui um cadastro de vencimento para esta mesma data.
             </p>
 
-            <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-xl text-xs space-y-1 font-mono">
-              <p>Código: {existingDuplicate.codigo}</p>
-              <p>Vencimento: {existingDuplicate.dataVencimento}</p>
-              <p>Quantidade Atual: {existingDuplicate.quantidadeAtual}</p>
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs space-y-2">
+              <div className="flex items-center gap-2 font-mono text-[11px] font-bold">
+                <span className="bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800">
+                  CÓDIGO: {produto.codigo}
+                </span>
+                <span className="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">
+                  DIG: {produto.dig}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Descrição Mercadoria</span>
+                <p className="font-bold text-slate-900 dark:text-white text-sm">
+                  {produto.descricao}
+                </p>
+              </div>
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Vencimento Cadastrado</span>
+                <p className="text-red-600 dark:text-red-400 font-black text-sm">
+                  {formatarDataBR(dataVencimento)}
+                </p>
+              </div>
             </div>
 
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">O que deseja fazer?</p>
-
-            <div className="space-y-2">
+            <div className="space-y-2 pt-1">
               <button
-                onClick={async () => {
-                  setShowDuplicateDialog(false);
-                  await saveControleVencimento(false); // Update existing
+                type="button"
+                onClick={() => {
+                  setShowSameDateDialog(false);
+                  if (sameDateDuplicate) {
+                    loadExistingControlForEdit(sameDateDuplicate);
+                  }
                 }}
-                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow active:scale-95 uppercase tracking-wide"
               >
-                <Edit className="w-4 h-4" /> Atualizar Registro Existente
+                <Edit className="w-4 h-4" /> VER CADASTRO EXISTENTE
               </button>
 
               <button
-                onClick={async () => {
-                  setShowDuplicateDialog(false);
-                  await saveControleVencimento(true); // Force create new
-                }}
-                className="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
+                type="button"
+                onClick={() => setShowSameDateDialog(false)}
+                className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2.5 rounded-xl text-xs transition-colors uppercase"
               >
-                <Plus className="w-4 h-4" /> Criar Novo Registro Mesmo Assim
+                CANCELAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. WARNING DIALOG FOR SAME PRODUCT WITH DIFFERENT EXPIRATION DATES */}
+      {showDifferentDateDialog && produto && (
+        <div className="fixed inset-0 z-60 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-slate-900 dark:text-white">
+            <div className="flex items-center gap-2.5 text-amber-500">
+              <AlertTriangle className="w-6 h-6 shrink-0 text-amber-500" />
+              <h4 className="font-black text-base leading-tight">
+                PRODUTO JÁ CADASTRADO NA LISTA DE VENCIMENTOS
+              </h4>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Este produto já possui outro cadastro de vencimento na lista.
+            </p>
+
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs space-y-2.5">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Produto</span>
+                <p className="font-bold text-slate-900 dark:text-white">
+                  {produto.descricao}
+                </p>
+                <div className="flex gap-2 font-mono text-[11px] font-bold text-slate-500 mt-0.5">
+                  <span>Código: {produto.codigo}</span>
+                  <span>•</span>
+                  <span>DIG: {produto.dig}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1">
+                <span className="text-[10px] font-extrabold uppercase text-slate-400 block">
+                  Vencimento(s) já cadastrado(s):
+                </span>
+                <ul className="space-y-1 font-mono font-bold text-amber-600 dark:text-amber-400">
+                  {existingDifferentControls.map((c) => (
+                    <li key={c.id} className="flex items-center gap-1.5">
+                      <span>•</span>
+                      <span>{formatarDataBR(c.dataVencimento)}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        ({formatarQuantidade(c.quantidadeAtual, c.unidadeControle)})
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Nova Data a Cadastrar</span>
+                <span>• {formatarDataBR(dataVencimento)}</span>
+              </div>
+            </div>
+
+            <p className="text-xs font-medium text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-950/50 p-3 rounded-xl border border-amber-200 dark:border-amber-900/60">
+              "Você está cadastrando uma nova data de vencimento para este produto. Deseja continuar?"
+            </p>
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowDifferentDateDialog(false);
+                  await saveControleVencimento();
+                }}
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow active:scale-95 uppercase tracking-wide"
+              >
+                <Plus className="w-4 h-4" /> CONTINUAR CADASTRO
               </button>
 
               <button
-                onClick={() => setShowDuplicateDialog(false)}
-                className="w-full text-slate-400 hover:text-slate-200 text-xs py-1 transition-colors"
+                type="button"
+                onClick={() => setShowDifferentDateDialog(false)}
+                className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2.5 rounded-xl text-xs transition-colors uppercase"
               >
-                Cancelar
+                CANCELAR
               </button>
             </div>
           </div>
