@@ -148,3 +148,64 @@ export function parsePrecoString(input: string | number | null | undefined): num
   const num = parseFloat(str);
   return isNaN(num) ? null : num;
 }
+
+export interface PriorityColorConfig {
+  prioridade: 'CRITICO' | 'ATENCAO' | 'NAO_CRITICO';
+  label: string;
+  pdfFillColor: [number, number, number];
+  pdfTextColor: [number, number, number];
+  bgClass: string;
+  textClass: string;
+  borderClass: string;
+}
+
+/**
+  * Returns priority color configuration for expiration date:
+  * - Vermelho (Red) for Crítico (<= 3 days)
+  * - Amarelo (Yellow) for Atenção (4-10 days without price worked on)
+  * - Verde (Green) for Não Crítico (> 10 days OR > 3 days with price worked on)
+  */
+export function getPriorityColor(
+  dataVencimentoStr: string,
+  precoTrabalhado?: number | null
+): PriorityColorConfig {
+  const days = calcularDiasAteVencimento(dataVencimentoStr);
+  const hasPreco = precoTrabalhado !== null && precoTrabalhado !== undefined;
+
+  // 1. Crítico (Vermelho): Expired or <= 3 days remaining
+  if (days <= 3) {
+    return {
+      prioridade: 'CRITICO',
+      label: 'CRÍTICO',
+      pdfFillColor: [220, 38, 38], // Red #DC2626
+      pdfTextColor: [255, 255, 255],
+      bgClass: 'bg-red-600 dark:bg-red-700',
+      textClass: 'text-white',
+      borderClass: 'border-red-700 dark:border-red-500',
+    };
+  }
+
+  // 2. Verde (Não crítico / Preço trabalhado): > 10 days OR (> 3 days with price worked on)
+  if (days > 10 || hasPreco) {
+    return {
+      prioridade: 'NAO_CRITICO',
+      label: 'NÃO CRÍTICO',
+      pdfFillColor: [0, 160, 70], // Green #00A046
+      pdfTextColor: [255, 255, 255],
+      bgClass: 'bg-emerald-600 dark:bg-emerald-700',
+      textClass: 'text-white',
+      borderClass: 'border-emerald-700 dark:border-emerald-500',
+    };
+  }
+
+  // 3. Amarelo (Atenção): 4 to 10 days without price worked on
+  return {
+    prioridade: 'ATENCAO',
+    label: 'ATENÇÃO',
+    pdfFillColor: [255, 204, 0], // Bright Yellow #FFCC00
+    pdfTextColor: [0, 0, 0],
+    bgClass: 'bg-amber-400 dark:bg-amber-500',
+    textClass: 'text-slate-950 font-black',
+    borderClass: 'border-amber-500 dark:border-amber-400',
+  };
+}

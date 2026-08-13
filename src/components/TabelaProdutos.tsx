@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { ControleVencimento, Produto, StatusVencimento } from '../types';
-import { formatarDataBR, formatarMoeda, getStatusConfig, parsePrecoString } from '../utils/date';
+import { formatarDataBR, formatarMoeda, getStatusConfig, getPriorityColor, parsePrecoString } from '../utils/date';
 import { formatarQuantidade } from '../utils/quantity';
 import {
   Search,
@@ -241,6 +241,7 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                 sortedControles.map((item) => {
                   const produto = produtosMap.get(item.produtoId);
                   const statusCfg = getStatusConfig(item.status);
+                  const prioColor = getPriorityColor(item.dataVencimento, item.precoTrabalhado);
 
                   return (
                     <tr
@@ -268,8 +269,12 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                       <td className="px-2 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
                         {produto?.estoqueEmb9 || '0'}
                       </td>
-                      <td className="px-3 py-3 text-center font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                        {formatarDataBR(item.dataVencimento)}
+                      <td className="px-3 py-3 text-center whitespace-nowrap">
+                        <span
+                          className={`inline-block px-2.5 py-1 rounded-lg text-xs font-black border shadow-2xs ${prioColor.bgClass} ${prioColor.textClass} ${prioColor.borderClass}`}
+                        >
+                          {formatarDataBR(item.dataVencimento)}
+                        </span>
                       </td>
 
                       {/* Inline Editable Preço Trabalhado */}
@@ -362,6 +367,7 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
             sortedControles.map((item) => {
               const produto = produtosMap.get(item.produtoId);
               const statusCfg = getStatusConfig(item.status);
+              const prioColor = getPriorityColor(item.dataVencimento, item.precoTrabalhado);
 
               return (
                 <div key={item.id} className="p-4 space-y-3">
@@ -399,8 +405,8 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Vencimento</span>
-                      <span className="font-bold text-slate-900 dark:text-white">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Vencimento</span>
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-black border ${prioColor.bgClass} ${prioColor.textClass} ${prioColor.borderClass}`}>
                         {formatarDataBR(item.dataVencimento)}
                       </span>
                     </div>

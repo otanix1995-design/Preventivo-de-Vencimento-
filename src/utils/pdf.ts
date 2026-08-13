@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { ControleVencimento, Produto, FiltroPdfOptions } from '../types';
-import { formatarDataBR, formatarMoeda, calcularDiasAteVencimento } from './date';
+import { formatarDataBR, formatarMoeda, getPriorityColor } from './date';
 
 export interface ItemRelatorioPdf {
   controle: ControleVencimento;
@@ -76,7 +76,7 @@ export function gerarRelatorioPdf(
         : '-';
 
     const dataVencFmt = formatarDataBR(c.dataVencimento);
-    const daysRemaining = calcularDiasAteVencimento(c.dataVencimento);
+    const priorityCfg = getPriorityColor(c.dataVencimento, c.precoTrabalhado);
 
     // Get quantity for EMB1 and EMB9
     const emb1Val =
@@ -97,7 +97,7 @@ export function gerarRelatorioPdf(
       p?.compradorFilial || '-',
       emb1Val,
       emb9Val,
-      { content: dataVencFmt, daysRemaining, status: c.status },
+      { content: dataVencFmt, priorityCfg },
       precoFmt,
     ];
   });
@@ -168,23 +168,19 @@ export function gerarRelatorioPdf(
           data.cell.styles.textColor = [0, 0, 0];
         }
 
-        // VENCIMENTO column custom cell styling (Red or Purple background with white bold text)
+        // VENCIMENTO column custom cell styling (Red for critical, Yellow for attention, Green for non-critical/worked price)
         if (data.column.index === 7) {
           const cellRaw = data.cell.raw as any;
-          const days = typeof cellRaw === 'object' && cellRaw ? cellRaw.daysRemaining : 0;
           const textVal = typeof cellRaw === 'object' && cellRaw ? cellRaw.content : String(cellRaw);
+          const pCfg = typeof cellRaw === 'object' && cellRaw ? cellRaw.priorityCfg : null;
 
           data.cell.text = [textVal];
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.textColor = [255, 255, 255];
           data.cell.styles.halign = 'center';
 
-          if (days >= 4 && days <= 10) {
-            // Purple highlight (#7030A0) for ~1 week window
-            data.cell.styles.fillColor = [112, 48, 160];
-          } else {
-            // Bright Red (#FF0000) for urgent / expired / distant window
-            data.cell.styles.fillColor = [255, 0, 0];
+          if (pCfg) {
+            data.cell.styles.fillColor = pCfg.pdfFillColor;
+            data.cell.styles.textColor = pCfg.pdfTextColor;
           }
         }
       }
