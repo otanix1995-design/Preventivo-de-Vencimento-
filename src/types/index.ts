@@ -90,4 +90,7 @@ export interface FiltroPdfOptions {
   dataFim?: string;
   compradorFilial: string; // 'TODOS' or specific compradorFilial
   ordenacao: 'DATA_VENCIMENTO' | 'CODIGO' | 'DESCRICAO' | 'COMPRADOR' | 'PRIORIDADE';
+  tituloRelatorio?: string;  // e.g. "PREVENTIVO SETOR FRIOS"
+  liderResponsavel?: string; // e.g. "LIDER JOAO"
+  dataCabecalho?: string;    // e.g. "13/08/2026"
 }

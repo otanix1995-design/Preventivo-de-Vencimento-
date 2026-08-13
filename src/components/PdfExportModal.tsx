@@ -25,6 +25,12 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
     'DATA_VENCIMENTO' | 'CODIGO' | 'DESCRICAO' | 'COMPRADOR' | 'PRIORIDADE'
   >('DATA_VENCIMENTO');
 
+  const [tituloRelatorio, setTituloRelatorio] = useState('PREVENTIVO SETOR FRIOS');
+  const [liderResponsavel, setLiderResponsavel] = useState('LIDER JOAO');
+  const [dataCabecalho, setDataCabecalho] = useState(
+    new Date().toLocaleDateString('pt-BR')
+  );
+
   if (!isOpen) return null;
 
   // Extract available Comprador Filial list
@@ -80,6 +86,9 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
       dataFim,
       compradorFilial: filterComprador,
       ordenacao,
+      tituloRelatorio,
+      liderResponsavel,
+      dataCabecalho,
     };
 
     gerarRelatorioPdf(filteredItems, filtroOptions);
@@ -106,8 +115,50 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
         {/* Body */}
         <div className="p-5 space-y-4">
           <p className="text-xs text-slate-600 dark:text-slate-300">
-            Selecione as opções de filtro e ordenação desejadas para a emissão do relatório em PDF.
+            Selecione as opções de filtro e personalização para a emissão do relatório em PDF.
           </p>
+
+          {/* Banner Header Fields */}
+          <div className="p-3 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/50 rounded-2xl space-y-2.5">
+            <span className="text-[11px] font-bold text-orange-800 dark:text-orange-300 block">
+              CABECALHO DO RELATÓRIO (FAIXA LARANJA)
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                  DATA
+                </label>
+                <input
+                  type="text"
+                  value={dataCabecalho}
+                  onChange={(e) => setDataCabecalho(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                  TÍTULO
+                </label>
+                <input
+                  type="text"
+                  value={tituloRelatorio}
+                  onChange={(e) => setTituloRelatorio(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                  LÍDER / RESP.
+                </label>
+                <input
+                  type="text"
+                  value={liderResponsavel}
+                  onChange={(e) => setLiderResponsavel(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase"
+                />
+              </div>
+            </div>
+          </div>
 
           {/* Status Filter */}
           <div>

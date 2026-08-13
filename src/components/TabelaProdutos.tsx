@@ -296,12 +296,16 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                         ) : (
                           <span
                             onClick={() => handleStartEditPrice(item)}
-                            className="cursor-pointer hover:underline text-emerald-600 dark:text-emerald-400 font-bold"
+                            className={`inline-block cursor-pointer px-2.5 py-1 rounded-lg font-black text-xs transition-all ${
+                              item.precoTrabalhado !== null && item.precoTrabalhado !== undefined
+                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700 hover:bg-slate-200'
+                            }`}
                             title="Clique para editar o preço trabalhado"
                           >
                             {item.precoTrabalhado !== null && item.precoTrabalhado !== undefined
                               ? formatarMoeda(item.precoTrabalhado)
-                              : 'R$ --'}
+                              : 'R$ -- (Editar)'}
                           </span>
                         )}
                       </td>
