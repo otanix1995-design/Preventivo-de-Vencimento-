@@ -104,8 +104,8 @@ export function gerarRelatorioPdf(
 
   // 3. Render Table using autoTable with yellow headers & grid borders
   autoTable(doc, {
-    startY: bannerY + bannerHeight, // 22mm
-    margin: { left: 10, right: 10 },
+    startY: bannerY + bannerHeight + 1, // 23mm
+    margin: { top: 23, bottom: 10, left: 10, right: 10 },
     head: [
       [
         'CÓDIGO',
@@ -124,8 +124,9 @@ export function gerarRelatorioPdf(
     tableLineWidth: 0.2,
     tableLineColor: [0, 0, 0],
     styles: {
-      fontSize: 8.5,
-      cellPadding: 2,
+      fontSize: 8,
+      cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 },
+      minCellHeight: 5.2,
       valign: 'middle',
       font: 'helvetica',
       textColor: [0, 0, 0],
@@ -138,7 +139,8 @@ export function gerarRelatorioPdf(
       textColor: [0, 0, 0],      // Black Text
       fontStyle: 'bold',
       halign: 'center',
-      fontSize: 9,
+      fontSize: 8.5,
+      cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 },
       lineColor: [0, 0, 0],
       lineWidth: 0.2,
     },
