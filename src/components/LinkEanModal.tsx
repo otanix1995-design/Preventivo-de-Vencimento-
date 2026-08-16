@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { db } from '../db/database';
 import type { Produto } from '../types';
 import { Link2, Search, CheckCircle2, AlertTriangle, X } from 'lucide-react';
+import { normalizarEan } from '../utils/excel';
+import { buscarProdutoPorEanOuCodigo } from '../utils/productSearch';
 
 interface LinkEanModalProps {
   isOpen: boolean;
@@ -28,28 +30,17 @@ export const LinkEanModal: React.FC<LinkEanModalProps> = ({
     setSearchError(null);
     setFoundProduto(null);
 
-    const cleanCode = searchCodigo.trim().replace(/^0+/, '');
-    if (!cleanCode) {
-      setSearchError('Digite o código do produto para localizar.');
+    const term = searchCodigo.trim();
+    if (!term) {
+      setSearchError('Digite o código ou descrição do produto para localizar.');
       return;
     }
 
-    // Search by product code in database
-    const prod = await db.produtos.get(cleanCode);
-    if (!prod) {
-      // Try searching by original code if not found directly
-      const byOriginal = await db.produtos
-        .where('codigoOriginal')
-        .equals(searchCodigo.trim())
-        .first();
-
-      if (byOriginal) {
-        setFoundProduto(byOriginal);
-      } else {
-        setSearchError(`Não encontramos o código ${cleanCode} na base atual de produtos.`);
-      }
+    const res = await buscarProdutoPorEanOuCodigo(term);
+    if (res.encontrado && res.produto) {
+      setFoundProduto(res.produto);
     } else {
-      setFoundProduto(prod);
+      setSearchError(`Não encontramos nenhum produto com o código ou termo "${term}".`);
     }
   };
 
@@ -59,29 +50,34 @@ export const LinkEanModal: React.FC<LinkEanModalProps> = ({
 
     try {
       const nowIso = new Date().toISOString();
+      const cleanEan = normalizarEan(unlinkedEan) || unlinkedEan.trim();
 
       // Check if this EAN is already linked to avoid constraint duplicate error
-      const existingLink = await db.vinculosEan.where('ean').equals(unlinkedEan).first();
+      const existingLink = await db.vinculosEan.where('ean').equals(cleanEan).first();
       if (existingLink) {
         await db.vinculosEan.update(existingLink.id!, {
           produtoId: foundProduto.id,
           codigo: foundProduto.codigo,
           dig: foundProduto.dig,
+          codigoOriginal: foundProduto.codigoOriginal,
+          descricao: foundProduto.descricao,
           atualizadoEm: nowIso,
         });
       } else {
         await db.vinculosEan.add({
-          ean: unlinkedEan,
+          ean: cleanEan,
           produtoId: foundProduto.id,
           codigo: foundProduto.codigo,
           dig: foundProduto.dig,
+          codigoOriginal: foundProduto.codigoOriginal,
+          descricao: foundProduto.descricao,
           criadoEm: nowIso,
           atualizadoEm: nowIso,
         });
       }
 
       setIsSaving(false);
-      onLinkSuccess(foundProduto, unlinkedEan);
+      onLinkSuccess(foundProduto, cleanEan);
     } catch (err) {
       console.error('Erro ao salvar vínculo EAN:', err);
       setIsSaving(false);

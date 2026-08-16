@@ -3,25 +3,29 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db/database';
 import type { Produto, ControleVencimento, StatusVencimento } from './types';
 import { calcularStatusVencimento } from './utils/date';
+import { buscarProdutoPorEanOuCodigo } from './utils/productSearch';
 
 // Components
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { TabelaProdutos } from './components/TabelaProdutos';
 import { TabelaCatalogoProdutos } from './components/TabelaCatalogoProdutos';
+import { ModuloCartazes } from './components/ModuloCartazes';
 import { BarcodeScannerModal } from './components/BarcodeScannerModal';
 import { LinkEanModal } from './components/LinkEanModal';
 import { CadastroVencimentoModal } from './components/CadastroVencimentoModal';
 import { ImportExcelModal } from './components/ImportExcelModal';
+import { ModalGerenciarEan } from './components/ModalGerenciarEan';
 import { PdfExportModal } from './components/PdfExportModal';
 import { DetachedHistoryModal } from './components/DetachedHistoryModal';
 import { AlertExpiredModal } from './components/AlertExpiredModal';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'produtos' | 'catalogo'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'produtos' | 'catalogo' | 'cartazes'>('dashboard');
 
   // Modal States
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [cartazesFoundCallback, setCartazesFoundCallback] = useState<((prod: Produto, ean: string) => void) | null>(null);
   const [isLinkEanOpen, setIsLinkEanOpen] = useState(false);
   const [unlinkedEan, setUnlinkedEan] = useState('');
 
@@ -30,6 +34,7 @@ export default function App() {
   const [selectedControleForEdit, setSelectedControleForEdit] = useState<ControleVencimento | null>(null);
 
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isEanModalOpen, setIsEanModalOpen] = useState(false);
   const [isPdfOpen, setIsPdfOpen] = useState(false);
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -95,38 +100,46 @@ export default function App() {
   const handleScanSuccess = async (scannedEan: string) => {
     setIsScannerOpen(false);
 
-    // Look up EAN in DB
-    const vinculo = await db.vinculosEan.where('ean').equals(scannedEan).first();
+    // Look up EAN / Code in DB with robust multi-format matching
+    const searchResult = await buscarProdutoPorEanOuCodigo(scannedEan);
+    const prod = searchResult.produto;
 
-    if (vinculo) {
-      // EAN is linked to a product!
-      const prod = await db.produtos.get(vinculo.produtoId);
+    if (cartazesFoundCallback) {
       if (prod) {
-        setSelectedProdutoForCadastro(prod);
-        setSelectedControleForEdit(null);
-        setIsCadastroOpen(true);
+        cartazesFoundCallback(prod, scannedEan);
+        setCartazesFoundCallback(null);
+        return;
       } else {
-        // Fallback search by code
-        const prodByCode = await db.produtos.get(vinculo.codigo);
-        if (prodByCode) {
-          setSelectedProdutoForCadastro(prodByCode);
-          setSelectedControleForEdit(null);
-          setIsCadastroOpen(true);
-        } else {
-          setUnlinkedEan(scannedEan);
-          setIsLinkEanOpen(true);
-        }
+        setUnlinkedEan(scannedEan);
+        setIsLinkEanOpen(true);
+        return;
       }
+    }
+
+    if (prod) {
+      setSelectedProdutoForCadastro(prod);
+      setSelectedControleForEdit(null);
+      setIsCadastroOpen(true);
     } else {
-      // EAN not linked! Prompt link modal immediately
       setUnlinkedEan(scannedEan);
       setIsLinkEanOpen(true);
     }
   };
 
+  // Trigger scanner from Cartazes module
+  const handleOpenScannerForCartazes = (onFoundProduct: (prod: Produto, scannedEan: string) => void) => {
+    setCartazesFoundCallback(() => onFoundProduct);
+    setIsScannerOpen(true);
+  };
+
   // EAN Linking Success
   const handleLinkSuccess = (produto: Produto, ean: string) => {
     setIsLinkEanOpen(false);
+    if (cartazesFoundCallback) {
+      cartazesFoundCallback(produto, ean);
+      setCartazesFoundCallback(null);
+      return;
+    }
     setSelectedProdutoForCadastro(produto);
     setSelectedControleForEdit(null);
     setIsCadastroOpen(true);
@@ -166,19 +179,24 @@ export default function App() {
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenScanner={() => setIsScannerOpen(true)}
+        onOpenScanner={() => {
+          setCartazesFoundCallback(null);
+          setIsScannerOpen(true);
+        }}
         onOpenCadastro={() => {
           setSelectedProdutoForCadastro(null);
           setSelectedControleForEdit(null);
           setIsCadastroOpen(true);
         }}
         onOpenImport={() => setIsImportOpen(true)}
+        onOpenEanModal={() => setIsEanModalOpen(true)}
         onOpenPdf={() => setIsPdfOpen(true)}
         onOpenSearchCode={() => {
           setSelectedProdutoForCadastro(null);
           setSelectedControleForEdit(null);
           setIsCadastroOpen(true);
         }}
+        onOpenCartazes={() => setActiveTab('cartazes')}
         vencidosCount={vencidosCount}
         catalogoCount={produtosList.length}
       />
@@ -198,7 +216,10 @@ export default function App() {
               setIsCadastroOpen(true);
             }}
             onOpenImport={() => setIsImportOpen(true)}
-            onOpenScanner={() => setIsScannerOpen(true)}
+            onOpenScanner={() => {
+              setCartazesFoundCallback(null);
+              setIsScannerOpen(true);
+            }}
           />
         ) : activeTab === 'produtos' ? (
           <TabelaProdutos
@@ -209,7 +230,7 @@ export default function App() {
             onViewHistory={handleViewHistory}
             onUpdatePrecoTrabalhado={handleUpdatePrecoTrabalhado}
           />
-        ) : (
+        ) : activeTab === 'catalogo' ? (
           <TabelaCatalogoProdutos
             produtos={produtosList}
             controlesMap={controlesMap}
@@ -218,6 +239,13 @@ export default function App() {
               setSelectedControleForEdit(null);
               setIsCadastroOpen(true);
             }}
+            onOpenEanManager={() => setIsEanModalOpen(true)}
+          />
+        ) : (
+          <ModuloCartazes
+            produtos={produtosList}
+            controles={controles}
+            onOpenScanner={handleOpenScannerForCartazes}
           />
         )}
       </main>
@@ -227,7 +255,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>Controle Inteligente de Vencimentos &copy; {new Date().getFullYear()}</span>
           <span className="font-semibold text-slate-600 dark:text-slate-300">
-            PWA Responsivo • Scanner EAN • Comparativo Excel
+            PWA Responsivo • Scanner EAN • Comparativo Excel • Cartazes de Ofertas
           </span>
         </div>
       </footer>
@@ -267,6 +295,12 @@ export default function App() {
         onClose={() => setIsImportOpen(false)}
         onSuccess={() => setIsImportOpen(false)}
         onGoToCatalogo={() => setActiveTab('catalogo')}
+        onOpenEanManager={() => setIsEanModalOpen(true)}
+      />
+
+      <ModalGerenciarEan
+        isOpen={isEanModalOpen}
+        onClose={() => setIsEanModalOpen(false)}
       />
 
       <PdfExportModal

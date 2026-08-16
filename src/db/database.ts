@@ -6,6 +6,9 @@ import type {
   EstoqueHistorico,
   ControleVencimento,
   HistoricoMovimentacao,
+  VendaReal,
+  DivergenciaVenda,
+  AuditoriaFefo,
 } from '../types';
 
 export class VencimentosDatabase extends Dexie {
@@ -15,6 +18,9 @@ export class VencimentosDatabase extends Dexie {
   estoqueHistorico!: Table<EstoqueHistorico, number>;
   controleVencimento!: Table<ControleVencimento, number>;
   historicoMovimentacao!: Table<HistoricoMovimentacao, number>;
+  vendasReais!: Table<VendaReal, number>;
+  divergenciasVendas!: Table<DivergenciaVenda, number>;
+  auditoriaFefo!: Table<AuditoriaFefo, number>;
 
   constructor() {
     super('VencimentosDB');
@@ -28,7 +34,14 @@ export class VencimentosDatabase extends Dexie {
       controleVencimento: '++id, produtoId, codigo, dataVencimento, status',
       historicoMovimentacao: '++id, controleVencimentoId, importacaoId',
     });
+
+    this.version(2).stores({
+      vendasReais: '++id, &saleId, codigo, dig, dataHoraTimestamp, status, importacaoId, criadoEm',
+      divergenciasVendas: '++id, saleId, codigo, status, importacaoId, criadoEm',
+      auditoriaFefo: '++id, importacaoId, produtoId, codigo, dataHora, criadoEm',
+    });
   }
 }
 
 export const db = new VencimentosDatabase();
+

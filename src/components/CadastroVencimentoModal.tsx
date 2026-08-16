@@ -14,7 +14,9 @@ import {
   Plus,
 } from 'lucide-react';
 import { converterParaGramas, gramasParaKgEGramas, formatarQuantidade } from '../utils/quantity';
+import { extrairUnidadesPorCaixa, converterEmb1Emb9ParaUnidades, converterUnidadesParaEmb1Emb9 } from '../utils/packaging';
 import { calcularStatusVencimento, parsePrecoString, formatarDataBR } from '../utils/date';
+import { buscarProdutoPorEanOuCodigo } from '../utils/productSearch';
 
 interface CadastroVencimentoModalProps {
   isOpen: boolean;
@@ -106,8 +108,15 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
       setQtdEmb1(controle.qtdEmb1 !== undefined ? String(controle.qtdEmb1) : '0');
       setQtdEmb9(controle.qtdEmb9 !== undefined ? String(controle.qtdEmb9) : '0');
     } else {
-      setQtdEmb1(controle.qtdEmb1 !== undefined ? String(controle.qtdEmb1) : String(controle.quantidadeAtual));
-      setQtdEmb9(controle.qtdEmb9 !== undefined ? String(controle.qtdEmb9) : '0');
+      const uBox = controle.unidadesPorCaixa || (prod ? extrairUnidadesPorCaixa(prod.embalagem) : 1);
+      if (controle.qtdEmb1 !== undefined && controle.qtdEmb9 !== undefined) {
+        setQtdEmb1(String(controle.qtdEmb1));
+        setQtdEmb9(String(controle.qtdEmb9));
+      } else {
+        const { emb1, emb9 } = converterUnidadesParaEmb1Emb9(controle.quantidadeAtual, uBox);
+        setQtdEmb1(String(emb1));
+        setQtdEmb9(String(emb9));
+      }
     }
   };
 
@@ -116,27 +125,17 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
     setSearchError(null);
     setProduto(null);
 
-    const cleanCode = searchCode.trim().replace(/^0+/, '');
-    if (!cleanCode) {
-      setSearchError('Informe o código do produto.');
+    const term = searchCode.trim();
+    if (!term) {
+      setSearchError('Informe o código ou EAN do produto.');
       return;
     }
 
-    const prod = await db.produtos.get(cleanCode);
-    if (!prod) {
-      // Try by original code
-      const prodOriginal = await db.produtos
-        .where('codigoOriginal')
-        .equals(searchCode.trim())
-        .first();
-
-      if (prodOriginal) {
-        setProduto(prodOriginal);
-      } else {
-        setSearchError('Não encontramos este código na base atual.');
-      }
+    const res = await buscarProdutoPorEanOuCodigo(term);
+    if (res.encontrado && res.produto) {
+      setProduto(res.produto);
     } else {
-      setProduto(prod);
+      setSearchError('Não encontramos este código ou código de barras (EAN) na base.');
     }
   };
 
@@ -194,13 +193,14 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
       let qtdCalculada = 0;
       const e1 = parseInt(qtdEmb1, 10) || 0;
       const e9 = parseInt(qtdEmb9, 10) || 0;
+      const uBox = extrairUnidadesPorCaixa(produto.embalagem);
 
       if (tipoControle === 'PESO') {
         const kgNum = parseFloat(quilos.replace(',', '.')) || 0;
         const gNum = parseInt(gramas, 10) || 0;
         qtdCalculada = converterParaGramas(kgNum, gNum);
       } else {
-        qtdCalculada = e1 + e9;
+        qtdCalculada = converterEmb1Emb9ParaUnidades(e1, e9, uBox);
       }
 
       const precoNum = parsePrecoString(precoTrabalhadoStr);
@@ -211,6 +211,7 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
         quantidadeInicial: qtdCalculada,
         qtdEmb1: e1,
         qtdEmb9: e9,
+        unidadesPorCaixa: uBox,
         unidadeControle: tipoControle,
         dataVencimento,
         precoTrabalhado: precoNum,
@@ -228,6 +229,8 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
           produtoId: produto.id,
           codigo: produto.codigo,
           dig: produto.dig,
+          venda30DiasReferencia: produto.venda30DiasNum,
+          venda30DiasStr: produto.venda30Dias,
           ...dataToSave,
           criadoEm: nowIso,
         });
@@ -446,9 +449,19 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-2">
-                    Total em Vencimento: {(parseInt(qtdEmb1, 10) || 0) + (parseInt(qtdEmb9, 10) || 0)} caixas/unidades
-                  </p>
+                  {(() => {
+                    const uBox = extrairUnidadesPorCaixa(produto.embalagem);
+                    const e1 = parseInt(qtdEmb1, 10) || 0;
+                    const e9 = parseInt(qtdEmb9, 10) || 0;
+                    const totalUnidades = converterEmb1Emb9ParaUnidades(e1, e9, uBox);
+                    return (
+                      <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-2">
+                        {uBox > 1
+                          ? `Total em Vencimento: ${totalUnidades} unidades (${e1} cx + ${e9} un • Caixa c/ ${uBox} un)`
+                          : `Total em Vencimento: ${totalUnidades} caixas/unidades`}
+                      </p>
+                    );
+                  })()}
                 </div>
               )}
 

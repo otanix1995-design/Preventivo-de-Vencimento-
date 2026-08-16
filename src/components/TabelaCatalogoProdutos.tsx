@@ -12,18 +12,22 @@ import {
   ChevronRight,
   Database,
   X,
+  Barcode,
+  Link2,
 } from 'lucide-react';
 
 interface TabelaCatalogoProdutosProps {
   produtos: Produto[];
   controlesMap: Map<string, ControleVencimento[]>;
   onCadastrarVencimento: (produto: Produto) => void;
+  onOpenEanManager?: () => void;
 }
 
 export const TabelaCatalogoProdutos: React.FC<TabelaCatalogoProdutosProps> = ({
   produtos,
   controlesMap,
   onCadastrarVencimento,
+  onOpenEanManager,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedComprador, setSelectedComprador] = useState('TODOS');
@@ -107,6 +111,16 @@ export const TabelaCatalogoProdutos: React.FC<TabelaCatalogoProdutosProps> = ({
             </p>
           </div>
         </div>
+
+        {onOpenEanManager && (
+          <button
+            onClick={onOpenEanManager}
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-2xl text-xs flex items-center gap-2 shadow-md shrink-0 transition-all active:scale-95 border border-amber-400/40"
+          >
+            <Barcode className="w-4 h-4" />
+            <span>Vínculos EAN / Código de Barras</span>
+          </button>
+        )}
       </div>
 
       {/* Search and Filters Bar */}
@@ -179,6 +193,7 @@ export const TabelaCatalogoProdutos: React.FC<TabelaCatalogoProdutosProps> = ({
                   <th className="py-3 px-4">EMBALAGEM</th>
                   <th className="py-3 px-4">COMPRADOR FILIAL</th>
                   <th className="py-3 px-4 text-center">ESTOQUE EMB1 / EMB9</th>
+                  <th className="py-3 px-4 text-center">VENDA 30 DIAS</th>
                   <th className="py-3 px-4 text-center">OUTRAS COLUNAS</th>
                   <th className="py-3 px-4 text-right">AÇÕES</th>
                 </tr>
@@ -245,6 +260,13 @@ export const TabelaCatalogoProdutos: React.FC<TabelaCatalogoProdutosProps> = ({
                         <div className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
                           {p.estoqueEmb1 || '0'} <span className="text-slate-400 font-normal">/</span> {p.estoqueEmb9 || '0'}
                         </div>
+                      </td>
+
+                      {/* Venda 30 Dias */}
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-lg border border-indigo-100 dark:border-indigo-900">
+                          {p.venda30Dias || '—'}
+                        </span>
                       </td>
 
                       {/* Outras Colunas Badge */}

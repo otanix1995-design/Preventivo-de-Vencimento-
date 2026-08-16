@@ -38,15 +38,15 @@ export function gerarRelatorioPdf(
   });
 
   // 1. Draw Orange Header Banner (Matching reference image)
-  const bannerX = 10;
-  const bannerY = 10;
-  const bannerWidth = 277; // 297 - 20mm margins
-  const bannerHeight = 12;
+  const bannerX = 8;
+  const bannerY = 8;
+  const bannerWidth = 281; // 297 - 16mm margins
+  const bannerHeight = 10;
 
   // Background Orange Fill #ED7D31 / rgb(232, 119, 34)
   doc.setFillColor(232, 119, 34);
   doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
+  doc.setLineWidth(0.25);
   doc.rect(bannerX, bannerY, bannerWidth, bannerHeight, 'FD');
 
   // Banner Texts (White, Bold)
@@ -54,16 +54,16 @@ export function gerarRelatorioPdf(
   doc.setFont('helvetica', 'bold');
 
   // Left: Date
-  doc.setFontSize(11);
-  doc.text(dataHeaderStr, bannerX + 4, bannerY + 8);
+  doc.setFontSize(10);
+  doc.text(dataHeaderStr, bannerX + 4, bannerY + 6.8);
 
   // Center: Title
-  doc.setFontSize(13);
-  doc.text(tituloStr, pageWidth / 2, bannerY + 8, { align: 'center' });
+  doc.setFontSize(12);
+  doc.text(tituloStr, pageWidth / 2, bannerY + 6.8, { align: 'center' });
 
   // Right: Leader Name
-  doc.setFontSize(11);
-  doc.text(liderStr, bannerX + bannerWidth - 4, bannerY + 8, { align: 'right' });
+  doc.setFontSize(10);
+  doc.text(liderStr, bannerX + bannerWidth - 4, bannerY + 6.8, { align: 'right' });
 
   // 2. Map data to table rows
   const tableData = sortedItems.map((item) => {
@@ -102,10 +102,10 @@ export function gerarRelatorioPdf(
     ];
   });
 
-  // 3. Render Table using autoTable with yellow headers & grid borders
+  // 3. Render Table using autoTable with yellow headers & grid borders (25 items per page)
   autoTable(doc, {
-    startY: bannerY + bannerHeight + 1, // 23mm
-    margin: { top: 23, bottom: 10, left: 10, right: 10 },
+    startY: bannerY + bannerHeight + 1, // ~19 mm
+    margin: { top: 10, bottom: 8, left: 8, right: 8 },
     head: [
       [
         'CÓDIGO',
@@ -121,17 +121,17 @@ export function gerarRelatorioPdf(
     ],
     body: tableData as any,
     theme: 'grid',
-    tableLineWidth: 0.2,
+    tableLineWidth: 0.15,
     tableLineColor: [0, 0, 0],
     styles: {
-      fontSize: 8,
-      cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 },
-      minCellHeight: 5.2,
+      fontSize: 7.5,
+      cellPadding: { top: 0.9, bottom: 0.9, left: 1.2, right: 1.2 },
+      minCellHeight: 5.5,
       valign: 'middle',
       font: 'helvetica',
       textColor: [0, 0, 0],
       lineColor: [0, 0, 0],
-      lineWidth: 0.2,
+      lineWidth: 0.15,
       overflow: 'linebreak',
     },
     headStyles: {
@@ -139,21 +139,21 @@ export function gerarRelatorioPdf(
       textColor: [0, 0, 0],      // Black Text
       fontStyle: 'bold',
       halign: 'center',
-      fontSize: 8.5,
-      cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 },
+      fontSize: 8,
+      cellPadding: { top: 1.2, bottom: 1.2, left: 1, right: 1 },
       lineColor: [0, 0, 0],
       lineWidth: 0.2,
     },
     columnStyles: {
       0: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },  // CÓDIGO
-      1: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },  // DIG
-      2: { cellWidth: 80, halign: 'left' },                       // DESCRIÇÃO
-      3: { cellWidth: 35, halign: 'left' },                       // EMBALAGEM
-      4: { cellWidth: 45, halign: 'left' },                       // COMPRADOR
+      1: { cellWidth: 11, halign: 'center', fontStyle: 'bold' },  // DIG
+      2: { cellWidth: 88, halign: 'left' },                       // DESCRIÇÃO
+      3: { cellWidth: 34, halign: 'left' },                       // EMBALAGEM
+      4: { cellWidth: 44, halign: 'left' },                       // COMPRADOR
       5: { cellWidth: 14, halign: 'center' },                     // EMB1
       6: { cellWidth: 14, halign: 'center' },                     // EMB9
       7: { cellWidth: 28, halign: 'center' },                     // VENCIMENTO
-      8: { cellWidth: 31, halign: 'center', fontStyle: 'bold' },  // PRECO
+      8: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },  // PRECO
     },
     didParseCell: (data) => {
       if (data.section === 'body') {
@@ -165,7 +165,7 @@ export function gerarRelatorioPdf(
         // PRECO column formatting & high visibility
         if (data.column.index === 8) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fontSize = 9;
+          data.cell.styles.fontSize = 8.5;
           data.cell.styles.halign = 'center';
           data.cell.styles.textColor = [0, 0, 0];
         }
@@ -192,13 +192,13 @@ export function gerarRelatorioPdf(
       const totalPages = (doc as any).internal.getNumberOfPages();
       const pageCurrent = data.pageNumber;
 
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 116, 139);
       doc.text(
         `Página ${pageCurrent} de ${totalPages} — Preventivo Setor Frios`,
         pageWidth / 2,
-        doc.internal.pageSize.getHeight() - 6,
+        doc.internal.pageSize.getHeight() - 4,
         { align: 'center' }
       );
     },
