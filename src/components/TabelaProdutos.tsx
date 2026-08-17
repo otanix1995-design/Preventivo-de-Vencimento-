@@ -199,31 +199,31 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4 w-full max-w-full overflow-hidden">
       {/* Search and Filters Bar */}
-      <div className="bg-white dark:bg-slate-800/90 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-800/90 rounded-2xl p-3 sm:p-4 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3 w-full max-w-full">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-3 w-full">
           {/* Search Input */}
-          <div className="relative flex-1">
+          <div className="relative w-full lg:flex-1 min-w-0">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
             <input
               type="text"
-              placeholder="Pesquisar por código, descrição, embalagem ou comprador/filial..."
+              placeholder="Pesquisar código, descrição, embalagem ou comprador..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 box-border"
             />
           </div>
 
           {/* Filters Group */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap items-center gap-2 w-full lg:w-auto">
             {/* Status Filter */}
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5">
-              <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 w-full sm:w-auto min-w-0">
+              <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer w-full min-w-0"
               >
                 <option value="TODOS">Todos os Status</option>
                 <option value="VENCIDO">🔴 Vencidos</option>
@@ -236,11 +236,11 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
 
             {/* Comprador Filial Filter */}
             {compradoresFiliais.length > 0 && (
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5">
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 w-full sm:w-auto min-w-0">
                 <select
                   value={filterComprador}
                   onChange={(e) => setFilterComprador(e.target.value)}
-                  className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer max-w-[160px] truncate"
+                  className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer w-full min-w-0 truncate"
                 >
                   <option value="TODOS">Todos Compradores/Filiais</option>
                   {compradoresFiliais.map((c) => (
@@ -253,21 +253,23 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
             )}
 
             {/* Sort Dropdown */}
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5">
-              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-              <select
-                value={sortBy}
-                onChange={(e: any) => setSortBy(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-              >
-                <option value="DATA_VENCIMENTO">Data Vencimento</option>
-                <option value="PRIORIDADE">Prioridade de Vencimento</option>
-                <option value="CODIGO">Código do Produto</option>
-                <option value="DESCRICAO">Descrição</option>
-              </select>
+            <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 w-full sm:w-auto min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <select
+                  value={sortBy}
+                  onChange={(e: any) => setSortBy(e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer w-full min-w-0 truncate"
+                >
+                  <option value="DATA_VENCIMENTO">Data Vencimento</option>
+                  <option value="PRIORIDADE">Prioridade de Vencimento</option>
+                  <option value="CODIGO">Código do Produto</option>
+                  <option value="DESCRICAO">Descrição</option>
+                </select>
+              </div>
               <button
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:opacity-80 px-1"
+                className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:opacity-80 px-1 shrink-0"
                 title="Inverter Ordem"
               >
                 {sortOrder === 'asc' ? '↑' : '↓'}
@@ -277,8 +279,8 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
         </div>
 
         {/* Counter Results & Quick Selection Toolbar */}
-        <div className="text-xs text-slate-500 dark:text-slate-400 font-medium flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-700/60 pt-2">
-          <div className="flex items-center gap-2">
+        <div className="text-xs text-slate-500 dark:text-slate-400 font-medium flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-t border-slate-100 dark:border-slate-700/60 pt-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <span>
               Exibindo <strong className="text-slate-900 dark:text-white">{sortedControles.length}</strong> de{' '}
               {controles.length} produtos em controle.
@@ -291,7 +293,7 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
           </div>
 
           {/* Quick Selection Buttons */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={handleToggleSelectAll}
               className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold transition-colors"
@@ -518,7 +520,7 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
         </div>
 
         {/* Mobile Responsive Cards View (Below md breakpoint) */}
-        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-700/60">
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-700/60 w-full max-w-full">
           {sortedControles.length === 0 ? (
             <div className="p-8 text-center text-slate-500 text-xs">
               Nenhum produto próximo do vencimento encontrado.
@@ -532,18 +534,18 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
               const isChecked = selectedIds.has(item.id!);
 
               return (
-                <div key={item.id} className={`p-4 space-y-3 ${isChecked ? 'bg-rose-50/50 dark:bg-rose-950/20' : ''}`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2.5 flex-1">
+                <div key={item.id} className={`p-3 sm:p-4 space-y-2.5 sm:space-y-3 w-full max-w-full overflow-hidden ${isChecked ? 'bg-rose-50/50 dark:bg-rose-950/20' : ''}`}>
+                  <div className="flex items-start justify-between gap-2 w-full">
+                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => handleToggleSelect(item.id!)}
-                        className="mt-1 w-4 h-4 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                        className="mt-1 w-4 h-4 rounded text-rose-600 focus:ring-rose-500 cursor-pointer shrink-0"
                       />
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <span className="text-[11px] sm:text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">
                             CÓD: {item.codigo} - {item.dig}
                           </span>
                           <span
@@ -552,45 +554,45 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                             {statusCfg.label}
                           </span>
                         </div>
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white break-words leading-tight">
                           {produto?.descricao || '-'}
                         </h4>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <div>
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 w-full box-border">
+                    <div className="min-w-0">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Embalagem</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">{produto?.embalagem || '-'}</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300 truncate block">{produto?.embalagem || '-'}</span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Comprador Filial</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">{produto?.compradorFilial || '-'}</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300 truncate block">{produto?.compradorFilial || '-'}</span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Estoque EMB1/EMB9</span>
-                      <span className="font-mono text-slate-700 dark:text-slate-300">
+                      <span className="font-mono text-slate-700 dark:text-slate-300 block">
                         {produto?.estoqueEmb1 || 0} / {produto?.estoqueEmb9 || 0}
                       </span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Qtd Próx. Venc.</span>
-                      <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-xs">
+                      <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-xs block">
                         {qtdVencFmt}
                       </span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Vencimento</span>
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-black border ${prioColor.bgClass} ${prioColor.textClass} ${prioColor.borderClass}`}>
                         {formatarDataBR(item.dataVencimento)}
                       </span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Preço Trab.</span>
                       <span
                         onClick={() => handleStartEditPrice(item)}
-                        className="text-xs font-bold text-emerald-600 dark:text-emerald-400 cursor-pointer underline"
+                        className="text-xs font-bold text-emerald-600 dark:text-emerald-400 cursor-pointer underline block truncate"
                       >
                         {item.precoTrabalhado !== null && item.precoTrabalhado !== undefined
                           ? formatarMoeda(item.precoTrabalhado)
@@ -605,21 +607,21 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                       className="p-2 bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 rounded-xl text-[11px] font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1.5 cursor-pointer"
                     >
                       <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>⚠️ {item.motivoDivergencia || 'VARIAÇÃO NA VENDA 30 DIAS'}</span>
+                      <span className="break-words">⚠️ {item.motivoDivergencia || 'VARIAÇÃO NA VENDA 30 DIAS'}</span>
                     </div>
                   )}
 
                   {!item.alertaDivergencia && item.alertaMovimentacaoSuperior && (
                     <div className="p-2 bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 rounded-xl text-[11px] font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
                       <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>⚠️ MOVIMENTAÇÃO SUPERIOR À QUANTIDADE CONTROLADA</span>
+                      <span className="break-words">⚠️ MOVIMENTAÇÃO SUPERIOR À QUANTIDADE CONTROLADA</span>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                     <button
                       onClick={() => handleImprimirCartazUnico(item)}
-                      className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-black flex items-center gap-1"
+                      className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-black flex items-center gap-1 active:scale-95"
                     >
                       <Tag className="w-3.5 h-3.5" />
                       <span>Cartaz TAGG</span>
@@ -627,21 +629,21 @@ export const TabelaProdutos: React.FC<TabelaProdutosProps> = ({
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => onViewHistory(item)}
-                        className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl"
+                        className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl active:scale-95"
                         title="Histórico"
                       >
                         <History className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => onEditControle(item)}
-                        className="p-2 bg-amber-500 text-slate-950 rounded-xl font-bold"
+                        className="p-2 bg-amber-500 text-slate-950 rounded-xl font-bold active:scale-95"
                         title="Editar"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => onDeleteControle(item.id!)}
-                        className="p-2 bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 rounded-xl"
+                        className="p-2 bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 rounded-xl active:scale-95"
                         title="Excluir"
                       >
                         <Trash2 className="w-4 h-4" />

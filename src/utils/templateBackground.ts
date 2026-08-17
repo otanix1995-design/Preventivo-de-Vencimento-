@@ -1,261 +1,164 @@
 /**
- * High-definition Background Template Engine for Supermarket Offer Posters.
- * Matches 100% of the official supermarket graphics (TAGG1, TAGG2, TAGG3, TAGG4).
- * Supports:
- * - Direct image caching and base64 rendering
- * - LocalStorage persistence for user-uploaded official graphic assets
- * - High-DPI canvas generation (1420 x 980 px) for crisp print quality
+ * Static PNG Templates for Official Supermarket Offer Posters (TAGG)
+ * Assets: TAGG1_LIMPO.png, TAGG2_LIMPO.png, TAGG3_LIMPO.png, TAGG4_LIMPO.png
+ * 
+ * Rules:
+ * - 100% fixed immutable PNG backgrounds.
+ * - ZERO redrawing of header, QR, green banner, orange block, guidelines or wing logos.
+ * - Dynamic product variables are strictly overlaid onto fixed millimeter coordinates.
  */
 
-import { getSingleTagSvgString, getSvgTemplateDataUrl } from './templateSvg';
+import { getSvgTemplateDataUrl } from './templateSvg';
 
-const STORAGE_KEY_CUSTOM_TEMPLATE = 'tagg_custom_template_image';
+export type TemplateKey = 'TAGG1_LIMPO' | 'TAGG2_LIMPO' | 'TAGG3_LIMPO' | 'TAGG4_LIMPO';
 
-export function getCustomTemplateImage(): string | null {
+export const TEMPLATE_PNG_PATHS: Record<TemplateKey, string> = {
+  TAGG1_LIMPO: '/templates/TAGG1_LIMPO.png',
+  TAGG2_LIMPO: '/templates/TAGG2_LIMPO.png',
+  TAGG3_LIMPO: '/templates/TAGG3_LIMPO.png',
+  TAGG4_LIMPO: '/templates/TAGG4_LIMPO.png',
+};
+
+const STORAGE_PREFIX = 'tagg_template_file_';
+
+export function getCustomTemplateImage(key: TemplateKey = 'TAGG4_LIMPO'): string | null {
   try {
-    return localStorage.getItem(STORAGE_KEY_CUSTOM_TEMPLATE);
+    return localStorage.getItem(`${STORAGE_PREFIX}${key}`) || null;
   } catch {
     return null;
   }
 }
 
-export function saveCustomTemplateImage(dataUrl: string) {
+export function saveCustomTemplateImage(keyOrDataUrl: string, maybeDataUrl?: string) {
   try {
-    localStorage.setItem(STORAGE_KEY_CUSTOM_TEMPLATE, dataUrl);
-    cachedSingleTagDataUrl = null;
+    let key: TemplateKey = 'TAGG4_LIMPO';
+    let dataUrl = keyOrDataUrl;
+    if (maybeDataUrl) {
+      key = keyOrDataUrl as TemplateKey;
+      dataUrl = maybeDataUrl;
+      localStorage.setItem(`${STORAGE_PREFIX}${key}`, dataUrl);
+    }
+    localStorage.setItem('tagg_custom_template_image', dataUrl);
+    const keys: TemplateKey[] = ['TAGG1_LIMPO', 'TAGG2_LIMPO', 'TAGG3_LIMPO', 'TAGG4_LIMPO'];
+    keys.forEach((k) => delete cachedPngTemplates[k]);
   } catch (e) {
     console.error('Failed to save custom template:', e);
   }
 }
 
-export function clearCustomTemplateImage() {
+export function clearCustomTemplateImage(key?: TemplateKey) {
   try {
-    localStorage.removeItem(STORAGE_KEY_CUSTOM_TEMPLATE);
-    cachedSingleTagDataUrl = null;
+    if (key) {
+      localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+      delete cachedPngTemplates[key];
+    } else {
+      const keys: TemplateKey[] = ['TAGG1_LIMPO', 'TAGG2_LIMPO', 'TAGG3_LIMPO', 'TAGG4_LIMPO'];
+      keys.forEach((k) => {
+        localStorage.removeItem(`${STORAGE_PREFIX}${k}`);
+        delete cachedPngTemplates[k];
+      });
+      localStorage.removeItem('tagg_custom_template_image');
+    }
   } catch (e) {
     console.error('Failed to clear custom template:', e);
   }
 }
 
-let cachedSingleTagDataUrl: string | null = null;
-let svgImageElement: HTMLImageElement | null = null;
-
-function getOrLoadSvgImage(): HTMLImageElement {
-  if (!svgImageElement) {
-    svgImageElement = new Image();
-    svgImageElement.src = getSvgTemplateDataUrl();
-  }
-  return svgImageElement;
-}
-
-if (typeof window !== 'undefined') {
-  getOrLoadSvgImage();
-}
+const cachedPngTemplates: Partial<Record<TemplateKey | 'SINGLE_TAG', string>> = {};
 
 /**
- * Draws the official supermarket template graphics onto a Canvas context
+ * Loads and caches the official PNG template in high resolution (2970x2100).
  */
-export function drawSingleTagTemplateOnCanvas(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number
-) {
-  // 1. Check if custom uploaded graphic exists
-  const customImg = getCustomTemplateImage();
-  if (customImg) {
-    const img = new Image();
-    img.src = customImg;
-    if (img.complete && img.naturalWidth > 0) {
-      ctx.drawImage(img, x, y, w, h);
-      return;
+export async function getTemplatePngDataUrl(key: TemplateKey = 'TAGG4_LIMPO'): Promise<string> {
+  // 1. Check custom uploaded template
+  const custom = getCustomTemplateImage(key);
+  if (custom) {
+    return custom;
+  }
+
+  // 2. Check memory cache
+  if (cachedPngTemplates[key]) {
+    return cachedPngTemplates[key]!;
+  }
+
+  // 3. Try to fetch from static PNG path if available
+  const staticPath = TEMPLATE_PNG_PATHS[key];
+  if (typeof window !== 'undefined') {
+    try {
+      const resp = await fetch(staticPath);
+      if (resp.ok) {
+        const blob = await resp.blob();
+        const base64 = await blobToBase64(blob);
+        cachedPngTemplates[key] = base64;
+        return base64;
+      }
+    } catch {
+      // Fallback to rasterizing high-res SVG if static file is loading in development
     }
   }
 
-  // 2. Base White Card
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(x, y, w, h);
+  // 4. Fallback: High-resolution rasterization to PNG
+  const svgDataUrl = getSvgTemplateDataUrl(key);
+  const pngDataUrl = await rasterizeToPng(svgDataUrl, 2970, 2100);
+  cachedPngTemplates[key] = pngDataUrl;
+  return pngDataUrl;
+}
 
-  // ==========================================
-  // 1. TOP HEADER BANNER (GREEN LEFT + ORANGE RIGHT)
-  // ==========================================
-  const headerH = h * 0.214;
-  const greenW = w * 0.556;
-  const orangeW = w - greenW;
-
-  // 1.1 Left Green Banner (#0C7536)
-  ctx.fillStyle = '#0C7536';
-  ctx.fillRect(x, y, greenW, headerH);
-
-  // "OFERTA" Text with 3D Drop Shadow
-  ctx.save();
-  ctx.font = `900 italic ${headerH * 0.76}px "Arial Black", Impact, "Helvetica Neue", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // Dark shadow
-  ctx.fillStyle = '#043516';
-  ctx.fillText('OFERTA', x + greenW / 2 + 2.5, y + headerH / 2 + 3);
-
-  // Main Neon Yellow
-  ctx.fillStyle = '#FFE600';
-  ctx.fillText('OFERTA', x + greenW / 2, y + headerH / 2);
-  ctx.restore();
-
-  // 1.2 Right Orange Banner (#E64516)
-  ctx.fillStyle = '#E64516';
-  ctx.fillRect(x + greenW, y, orangeW, headerH);
-
-  // WhatsApp Decorative Green Circles
-  ctx.fillStyle = '#0C7536';
-  const r = headerH * 0.082;
-  const bubbles = [
-    { cx: x + greenW + orangeW * 0.07, cy: y + headerH * 0.2 },
-    { cx: x + greenW + orangeW * 0.52, cy: y + headerH * 0.2 },
-    { cx: x + greenW + orangeW * 0.52, cy: y + headerH * 0.8 },
-    { cx: x + w - orangeW * 0.04, cy: y + headerH * 0.2 },
-    { cx: x + w - orangeW * 0.04, cy: y + headerH * 0.8 },
-  ];
-  bubbles.forEach((b) => {
-    ctx.beginPath();
-    ctx.arc(b.cx, b.cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Inner white highlight
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.arc(b.cx - 0.5, b.cy - 0.5, r * 0.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#0C7536';
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
   });
+}
 
-  // White Call-To-Action Texts
-  ctx.save();
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = `900 ${headerH * 0.165}px "Arial Black", Arial, sans-serif`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText('RECEBA AS', x + greenW + orangeW * 0.06, y + headerH * 0.13);
-  ctx.fillText('NOSSAS OFERTAS', x + greenW + orangeW * 0.06, y + headerH * 0.31);
-  ctx.fillText('NO SEU WHATS!', x + greenW + orangeW * 0.06, y + headerH * 0.49);
-
-  // Yellow Phone Number Pill
-  const pillW = orangeW * 0.45;
-  const pillH = headerH * 0.25;
-  const pillX = x + greenW + orangeW * 0.05;
-  const pillY = y + headerH * 0.67;
-  ctx.fillStyle = '#FFE600';
-  ctx.fillRect(pillX, pillY, pillW, pillH);
-
-  ctx.fillStyle = '#0C7536';
-  ctx.font = `900 ${headerH * 0.18}px "Arial Black", Arial, sans-serif`;
-  ctx.textBaseline = 'middle';
-  ctx.fillText('11 2795-6750', pillX + pillW * 0.06, pillY + pillH / 2);
-  ctx.restore();
-
-  // QR Code Frame
-  const qrSize = headerH * 0.82;
-  const qrX = x + w - qrSize - orangeW * 0.06;
-  const qrY = y + (headerH - qrSize) / 2;
-
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(qrX, qrY, qrSize, qrSize);
-  ctx.strokeStyle = '#0C7536';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(qrX, qrY, qrSize, qrSize);
-
-  // QR Finder Pattern
-  ctx.fillStyle = '#000000';
-  const cS = qrSize * 0.24;
-  ctx.fillRect(qrX + 2.5, qrY + 2.5, cS, cS);
-  ctx.fillRect(qrX + qrSize - cS - 2.5, qrY + 2.5, cS, cS);
-  ctx.fillRect(qrX + 2.5, qrY + qrSize - cS - 2.5, cS, cS);
-
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(qrX + 4.5, qrY + 4.5, cS - 4, cS - 4);
-  ctx.fillRect(qrX + qrSize - cS - 0.5, qrY + 4.5, cS - 4, cS - 4);
-  ctx.fillRect(qrX + 4.5, qrY + qrSize - cS - 0.5, cS - 4, cS - 4);
-
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(qrX + 6.5, qrY + 6.5, cS - 8, cS - 8);
-  ctx.fillRect(qrX + qrSize - cS + 1.5, qrY + 6.5, cS - 8, cS - 8);
-  ctx.fillRect(qrX + 6.5, qrY + qrSize - cS + 1.5, cS - 8, cS - 8);
-
-  // Center Green "A" Badge in QR
-  const bS = qrSize * 0.32;
-  const bX = qrX + (qrSize - bS) / 2;
-  const bY = qrY + (qrSize - bS) / 2;
-  ctx.fillStyle = '#0C7536';
-  ctx.fillRect(bX, bY, bS, bS);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = `900 italic ${bS * 0.75}px Arial, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('A', bX + bS / 2, bY + bS / 2);
-
-  // Subtitle below QR
-  ctx.fillStyle = '#0C7536';
-  ctx.font = `bold ${headerH * 0.05}px Arial, sans-serif`;
-  ctx.fillText('APONTE SUA CÂMERA', qrX + qrSize / 2, qrY + qrSize + headerH * 0.06);
-
-  // ==========================================
-  // 2. HORIZONTAL SUBTLE GUIDELINES (BOTTOM)
-  // ==========================================
-  ctx.strokeStyle = '#E0E0E0';
-  ctx.lineWidth = 1;
-  const lineY = y + h * 0.98;
-  for (let i = 0; i < 3; i++) {
-    ctx.beginPath();
-    ctx.moveTo(x, lineY + i * 3);
-    ctx.lineTo(x + w, lineY + i * 3);
-    ctx.stroke();
-  }
-
-  // ==========================================
-  // 3. OFFICIAL SLENDER "A" WING LOGO (BOTTOM-RIGHT)
-  // ==========================================
-  // The wing in the official clean template sits from y = 0.58h to 0.98h at the bottom right
-  const wingTopY = y + h * 0.58;
-  const wingBottomY = y + h * 0.98;
-  const wingLeftX = x + w * 0.80;
-  const wingRightX = x + w * 0.98;
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(wingLeftX, wingBottomY);
-  ctx.lineTo(wingRightX, wingTopY);
-  ctx.lineTo(x + w * 0.96, wingBottomY);
-  ctx.closePath();
-  ctx.fillStyle = '#E64516';
-  ctx.fill();
-
-  // White Stylized "A" inside the Wing
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = `900 italic ${h * 0.10}px "Arial Black", Impact, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('A', x + w * 0.91, y + h * 0.89);
-  ctx.restore();
+function rasterizeToPng(dataUrl: string, width = 2970, height = 2100): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      resolve(dataUrl);
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        const png = canvas.toDataURL('image/png', 1.0);
+        resolve(png);
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 }
 
 /**
- * Returns a high-res PNG data URL for jsPDF embedding (1420 x 980 px)
+ * Returns image data URL for preview in UI
  */
+export function getTemplateImage(key: TemplateKey | 'SINGLE_TAG' = 'TAGG4_LIMPO'): string {
+  if (key !== 'SINGLE_TAG') {
+    const custom = getCustomTemplateImage(key);
+    if (custom) return custom;
+  }
+  if (cachedPngTemplates[key]) {
+    return cachedPngTemplates[key]!;
+  }
+  return getSvgTemplateDataUrl(key === 'SINGLE_TAG' ? 'SINGLE_TAG' : key);
+}
+
 export function getSingleTagTemplateImage(): string {
-  const custom = getCustomTemplateImage();
-  if (custom) return custom;
-
-  if (cachedSingleTagDataUrl) return cachedSingleTagDataUrl;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 1420;
-  canvas.height = 980;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
-
-  drawSingleTagTemplateOnCanvas(ctx, 0, 0, canvas.width, canvas.height);
-
-  cachedSingleTagDataUrl = canvas.toDataURL('image/png', 0.95);
-  return cachedSingleTagDataUrl;
+  return getTemplateImage('SINGLE_TAG');
 }

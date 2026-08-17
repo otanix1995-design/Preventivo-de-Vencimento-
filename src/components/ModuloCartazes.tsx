@@ -6,7 +6,6 @@ import { formatarQuantidade } from '../utils/quantity';
 import {
   extrairMarca,
   extrairPrecoBaseProduto,
-  calcularPrecoKg,
   criarCartazItemDeProduto,
   decomporDescricaoTag,
   formatarCodigoSemZeros,
@@ -218,9 +217,6 @@ export const ModuloCartazes: React.FC<ModuloCartazesProps> = ({
             if (item.precoVenda && item.unidadesPorCaixa && item.unidadesPorCaixa > 1) {
               item.precoCaixa = Math.round(item.precoVenda * item.unidadesPorCaixa * 100) / 100;
             }
-            if (item.precoVenda) {
-              item.precoKg = calcularPrecoKg(item.precoVenda, item.embalagem);
-            }
           }
 
           // Apply local copies override
@@ -347,9 +343,6 @@ export const ModuloCartazes: React.FC<ModuloCartazesProps> = ({
     if (precoVenda && item.unidadesPorCaixa && item.unidadesPorCaixa > 1) {
       item.precoCaixa = Math.round(precoVenda * item.unidadesPorCaixa * 100) / 100;
     }
-    if (precoVenda) {
-      item.precoKg = calcularPrecoKg(precoVenda, item.embalagem);
-    }
 
     setCartazesAvulsos((prev) => [...prev, item]);
     setSelectedManualProduto(null);
@@ -424,28 +417,28 @@ export const ModuloCartazes: React.FC<ModuloCartazesProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-2 mt-5 pt-4 border-t border-white/20">
+        <div className="flex items-center gap-2 mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-white/20 overflow-x-auto scrollbar-none pb-0.5">
           <button
             onClick={() => setActiveTab('CONTROLE_VENCIMENTO')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap ${
               activeTab === 'CONTROLE_VENCIMENTO'
                 ? 'bg-white text-rose-800 shadow-md'
                 : 'bg-white/10 text-white hover:bg-white/20'
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>1. PRODUTOS DO CONTROLE DE VENCIMENTO ({controles.length})</span>
+            <span>1. CONTROLE DE VENCIMENTO ({controles.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('BUSCA_AVULSA')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap ${
               activeTab === 'BUSCA_AVULSA'
                 ? 'bg-white text-rose-800 shadow-md'
                 : 'bg-white/10 text-white hover:bg-white/20'
             }`}
           >
             <Search className="w-4 h-4" />
-            <span>2. ADICIONAR AVULSO / CATÁLOGO GERAL</span>
+            <span>2. AVULSO / CATÁLOGO</span>
           </button>
         </div>
       </div>

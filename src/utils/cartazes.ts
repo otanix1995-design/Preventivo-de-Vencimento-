@@ -254,6 +254,7 @@ export function extrairPrecoBaseProduto(produto: Produto): number | null {
 
 /**
  * Creates a CartazItem from a Produto and optional ControleVencimento
+ * Strictly contains required fields without Tributação or Média por KG.
  */
 export function criarCartazItemDeProduto(
   produto: Produto,
@@ -269,9 +270,14 @@ export function criarCartazItemDeProduto(
       : extrairPrecoBaseProduto(produto);
 
   const marca = extrairMarca(produto.descricao, produto.compradorFilial);
-  const infoTributaria = extrairInfoTributaria(produto, preco);
   const embalagem = produto.embalagem || extrairEmbalagemDescricao(produto.descricao) || 'UN';
-  const precoKg = calcularPrecoKg(preco, embalagem);
+
+  // Units per box if present in product or control
+  const unidadesPorCaixa = controle?.unidadesPorCaixa || produto.unidadesPorCaixa;
+  let precoCaixa: number | undefined = undefined;
+  if (preco && unidadesPorCaixa && unidadesPorCaixa > 1) {
+    precoCaixa = Math.round(preco * unidadesPorCaixa * 100) / 100;
+  }
 
   return {
     id: controle ? `c_${controle.id}` : `p_${produto.id}_${Date.now()}`,
@@ -281,11 +287,11 @@ export function criarCartazItemDeProduto(
     descricao: produto.descricao,
     embalagem,
     marca,
+    unidadesPorCaixa,
+    precoCaixa,
     tipoControle: produto.tipoControle || 'UNIDADE',
     precoVenda: preco,
     dataVencimento: controle?.dataVencimento || '',
-    infoTributaria,
-    precoKg,
     quantidadeCartazes,
   };
 }

@@ -184,130 +184,220 @@ export const TabelaCatalogoProdutos: React.FC<TabelaCatalogoProdutosProps> = ({
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
-                <tr>
-                  <th className="py-3 px-4">CÓDIGO / DIG</th>
-                  <th className="py-3 px-4">DESCRIÇÃO MERCADORIA</th>
-                  <th className="py-3 px-4">EMBALAGEM</th>
-                  <th className="py-3 px-4">COMPRADOR FILIAL</th>
-                  <th className="py-3 px-4 text-center">ESTOQUE EMB1 / EMB9</th>
-                  <th className="py-3 px-4 text-center">VENDA 30 DIAS</th>
-                  <th className="py-3 px-4 text-center">OUTRAS COLUNAS</th>
-                  <th className="py-3 px-4 text-right">AÇÕES</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                {paginatedProdutos.map((p) => {
-                  const controlesDoProduto = controlesMap.get(p.id) || [];
-                  const temControle = controlesDoProduto.length > 0;
-                  const extraCount = p.outrasColunas ? Object.keys(p.outrasColunas).length : 0;
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
+                  <tr>
+                    <th className="py-3 px-4">CÓDIGO / DIG</th>
+                    <th className="py-3 px-4">DESCRIÇÃO MERCADORIA</th>
+                    <th className="py-3 px-4">EMBALAGEM</th>
+                    <th className="py-3 px-4">COMPRADOR FILIAL</th>
+                    <th className="py-3 px-4 text-center">ESTOQUE EMB1 / EMB9</th>
+                    <th className="py-3 px-4 text-center">VENDA 30 DIAS</th>
+                    <th className="py-3 px-4 text-center">OUTRAS COLUNAS</th>
+                    <th className="py-3 px-4 text-right">AÇÕES</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                  {paginatedProdutos.map((p) => {
+                    const controlesDoProduto = controlesMap.get(p.id) || [];
+                    const temControle = controlesDoProduto.length > 0;
+                    const extraCount = p.outrasColunas ? Object.keys(p.outrasColunas).length : 0;
 
-                  return (
-                    <tr
-                      key={p.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-850 transition-colors"
-                    >
-                      {/* Code */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="font-mono font-bold text-slate-900 dark:text-slate-100 block">
-                          {p.codigo} - {p.dig || '000'}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {p.codigoOriginal}
-                        </span>
-                      </td>
+                    return (
+                      <tr
+                        key={p.id}
+                        className="hover:bg-slate-50/80 dark:hover:bg-slate-850 transition-colors"
+                      >
+                        {/* Code */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="font-mono font-bold text-slate-900 dark:text-slate-100 block">
+                            {p.codigo} - {p.dig || '000'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {p.codigoOriginal}
+                          </span>
+                        </td>
 
-                      {/* Description */}
-                      <td className="py-3 px-4">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 block max-w-xs sm:max-w-md truncate">
-                          {p.descricao}
-                        </span>
-                      </td>
+                        {/* Description */}
+                        <td className="py-3 px-4">
+                          <span className="font-bold text-slate-900 dark:text-slate-100 block max-w-xs sm:max-w-md truncate">
+                            {p.descricao}
+                          </span>
+                        </td>
 
-                      {/* Embalagem */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="text-slate-700 dark:text-slate-300 font-mono text-[11px] block">
-                          {p.embalagem || 'N/A'}
-                        </span>
-                        <span
-                          className={`inline-block text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
-                            p.tipoControle === 'PESO'
-                              ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                        {/* Embalagem */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="text-slate-700 dark:text-slate-300 font-mono text-[11px] block">
+                            {p.embalagem || 'N/A'}
+                          </span>
+                          <span
+                            className={`inline-block text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
+                              p.tipoControle === 'PESO'
+                                ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                                : p.tipoControle === 'UNIDADE'
+                                ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                                : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            {p.tipoControle === 'PESO'
+                              ? 'PESO (KG/G)'
                               : p.tipoControle === 'UNIDADE'
-                              ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
-                              : 'bg-slate-100 text-slate-500'
-                          }`}
-                        >
-                          {p.tipoControle === 'PESO'
-                            ? 'PESO (KG/G)'
-                            : p.tipoControle === 'UNIDADE'
-                            ? 'UNIDADE'
-                            : 'INDEFINIDO'}
-                        </span>
-                      </td>
+                              ? 'UNIDADE'
+                              : 'INDEFINIDO'}
+                          </span>
+                        </td>
 
-                      {/* Comprador */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="text-slate-600 dark:text-slate-300 text-xs">
-                          {p.compradorFilial || 'Sem comprador'}
-                        </span>
-                      </td>
+                        {/* Comprador */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="text-slate-600 dark:text-slate-300 text-xs">
+                            {p.compradorFilial || 'Sem comprador'}
+                          </span>
+                        </td>
 
-                      {/* Stock */}
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
-                        <div className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
-                          {p.estoqueEmb1 || '0'} <span className="text-slate-400 font-normal">/</span> {p.estoqueEmb9 || '0'}
+                        {/* Stock */}
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <div className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
+                            {p.estoqueEmb1 || '0'} <span className="text-slate-400 font-normal">/</span> {p.estoqueEmb9 || '0'}
+                          </div>
+                        </td>
+
+                        {/* Venda 30 Dias */}
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-lg border border-indigo-100 dark:border-indigo-900">
+                            {p.venda30Dias || '—'}
+                          </span>
+                        </td>
+
+                        {/* Outras Colunas Badge */}
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          {extraCount > 0 ? (
+                            <button
+                              onClick={() => setSelectedExtraProduct(p)}
+                              className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-colors"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>{extraCount} colunas extras</span>
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">Nenhuma</span>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-2">
+                            {temControle && (
+                              <span className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-800">
+                                {controlesDoProduto.length} Lote(s) em Vencimento
+                              </span>
+                            )}
+
+                            <button
+                              onClick={() => onCadastrarVencimento(p)}
+                              className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 shadow transition-all active:scale-95"
+                            >
+                              <PlusCircle className="w-3.5 h-3.5" />
+                              <span>+ VENCIMENTO</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800/60">
+              {paginatedProdutos.map((p) => {
+                const controlesDoProduto = controlesMap.get(p.id) || [];
+                const temControle = controlesDoProduto.length > 0;
+                const extraCount = p.outrasColunas ? Object.keys(p.outrasColunas).length : 0;
+
+                return (
+                  <div key={p.id} className="p-3 sm:p-4 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <span className="text-xs font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                            {p.codigo} - {p.dig || '000'}
+                          </span>
+                          <span
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                              p.tipoControle === 'PESO'
+                                ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                                : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                            }`}
+                          >
+                            {p.tipoControle === 'PESO' ? 'PESO' : 'UNID'}
+                          </span>
                         </div>
-                      </td>
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white break-words leading-tight">
+                          {p.descricao}
+                        </h4>
+                      </div>
+                    </div>
 
-                      {/* Venda 30 Dias */}
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
-                        <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-lg border border-indigo-100 dark:border-indigo-900">
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Embalagem</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 truncate block">{p.embalagem || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Comprador Filial</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 truncate block">{p.compradorFilial || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Estoque EMB1/EMB9</span>
+                        <span className="font-mono text-slate-700 dark:text-slate-300 block">
+                          {p.estoqueEmb1 || '0'} / {p.estoqueEmb9 || '0'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Venda 30 Dias</span>
+                        <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 block">
                           {p.venda30Dias || '—'}
                         </span>
-                      </td>
+                      </div>
+                    </div>
 
-                      {/* Outras Colunas Badge */}
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
-                        {extraCount > 0 ? (
-                          <button
-                            onClick={() => setSelectedExtraProduct(p)}
-                            className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-colors"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>{extraCount} colunas extras</span>
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 italic">Nenhuma</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      {extraCount > 0 ? (
+                        <button
+                          onClick={() => setSelectedExtraProduct(p)}
+                          className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>{extraCount} cols extras</span>
+                        </button>
+                      ) : (
+                        <div />
+                      )}
+
+                      <div className="flex items-center gap-1.5">
+                        {temControle && (
+                          <span className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold px-2 py-1 rounded-lg">
+                            {controlesDoProduto.length} lote(s)
+                          </span>
                         )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          {temControle && (
-                            <span className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-800">
-                              {controlesDoProduto.length} Lote(s) em Vencimento
-                            </span>
-                          )}
-
-                          <button
-                            onClick={() => onCadastrarVencimento(p)}
-                            className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 shadow transition-all active:scale-95"
-                          >
-                            <PlusCircle className="w-3.5 h-3.5" />
-                            <span>+ VENCIMENTO</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <button
+                          onClick={() => onCadastrarVencimento(p)}
+                          className="bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 active:scale-95"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" />
+                          <span>+ Vencimento</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {/* Pagination Controls */}

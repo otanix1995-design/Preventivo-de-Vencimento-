@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import type { CartazItem } from '../types';
 import { decomporDescricaoTag, formatarCodigoSemZeros } from '../utils/cartazes';
-import { drawSingleTagTemplateOnCanvas } from '../utils/templateBackground';
+import { getTemplateImage } from '../utils/templateBackground';
 
 interface CartazTaggVisualProps {
   item?: CartazItem | null;
@@ -11,28 +11,15 @@ interface CartazTaggVisualProps {
 
 /**
  * Renders an exact visual replica of the official Supermarket Offer Poster.
- * - When `item` is null or `isTemplateLimpo` is true, displays the 100% CLEAN official template.
- * - When `item` is provided, fills the product details, price, barcode and taxes into their exact coordinates.
+ * - Displays the official clean background template directly as the base layer.
+ * - Overlays ONLY the dynamic product text on top of the fixed coordinates.
  */
 export const CartazTaggVisual: React.FC<CartazTaggVisualProps> = ({
   item,
   className = '',
   isTemplateLimpo = false,
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = 1420;
-    canvas.height = 980;
-
-    drawSingleTagTemplateOnCanvas(ctx, 0, 0, canvas.width, canvas.height);
-  }, []);
-
+  const bgImage = getTemplateImage('SINGLE_TAG');
   const showContent = Boolean(item && !isTemplateLimpo);
 
   const parsed = item ? decomporDescricaoTag(item.descricao, item.marca) : null;
@@ -62,8 +49,9 @@ export const CartazTaggVisual: React.FC<CartazTaggVisualProps> = ({
       style={{ fontFamily: "'Arial Black', 'Helvetica Neue', Arial, sans-serif" }}
     >
       {/* 1. Official Graphic Background Layer (Clean Layout Base) */}
-      <canvas
-        ref={canvasRef}
+      <img
+        src={bgImage}
+        alt="Template Oficial TAGG"
         className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0"
       />
 
@@ -148,8 +136,8 @@ export const CartazTaggVisual: React.FC<CartazTaggVisualProps> = ({
               </div>
             </div>
 
-            {/* 2.3 Right Column: Preço do Produto & Tributos */}
-            <div className="w-[48%] flex flex-col justify-between items-end text-right pr-2">
+            {/* 2.3 Right Column: Preço do Produto */}
+            <div className="w-[48%] flex flex-col justify-start items-end text-right pr-2">
               {/* Price display - GIANT NUMBERS */}
               <div className="w-full flex flex-col items-end pt-1">
                 <span className="font-black italic text-xs sm:text-sm text-black mr-20 sm:mr-28">
@@ -169,18 +157,6 @@ export const CartazTaggVisual: React.FC<CartazTaggVisualProps> = ({
                     ,{decPart}
                   </span>
                 </div>
-              </div>
-
-              {/* Tax & Media KG positioned above the bottom wing */}
-              <div className="space-y-0.5 pb-8 pr-1">
-                <p className="text-[7.5px] sm:text-[8.5px] font-black text-black">
-                  {item.infoTributaria || 'TRIB: R$ 0,00 (0,00)%'}
-                </p>
-                {item.precoKg && (
-                  <p className="text-[8.5px] sm:text-[9.5px] font-black text-black">
-                    Media Kg R$ {item.precoKg.toFixed(2).replace('.', ',')}
-                  </p>
-                )}
               </div>
             </div>
           </div>

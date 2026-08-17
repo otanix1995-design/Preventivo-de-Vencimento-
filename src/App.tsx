@@ -174,7 +174,7 @@ export default function App() {
   const vencidosCount = controles.filter((c) => c.status === 'VENCIDO').length;
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans flex flex-col">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans flex flex-col w-full max-w-full overflow-x-hidden">
       {/* Header Bar */}
       <Header
         activeTab={activeTab}
@@ -202,7 +202,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-6 overflow-x-hidden box-border">
         {activeTab === 'dashboard' ? (
           <Dashboard
             controles={controles}
