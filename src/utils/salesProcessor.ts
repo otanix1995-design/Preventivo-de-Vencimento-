@@ -642,204 +642,235 @@ export async function processarImportacaoVendasReais(
         continue;
       }
 
-      // Sort active controls by dataVencimento ASC (FEFO: Rule 16)
+      // Sort sales chronologically (Rule 15: Momento da venda)
+      salesList.sort((a, b) => a.dataHoraTimestamp - b.dataHoraTimestamp);
+
+      // Sort active controls by dataVencimento ASC (FEFO: Rule 18)
       activeControles.sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
 
-      // Rule 20: Venda anterior ao cadastro do vencimento não pode abater lotes criados posteriormente
-      // Filter sales that occurred AFTER or EQUAL to control creation time
-      // For each sale, identify which controls it is eligible to discount
-      let totalVendasNormalizadasAplicaveis = 0;
-      salesList.forEach((s) => {
-        // A sale is valid for a batch if sale timestamp >= batch creation timestamp
-        totalVendasNormalizadasAplicaveis += s.qtdNormalizada;
-      });
-
-      // Total quantity available in controlled batches before discount
-      const totalEstoqueControladoAntes = activeControles.reduce((acc, c) => acc + c.quantidadeAtual, 0);
-
-      let saldoParaDescontar = totalVendasNormalizadasAplicaveis;
-      const detalhesAuditoria: {
+      const detalhesAuditoriaMap = new Map<number, {
         controleId: number;
         dataVencimento: string;
         qtdAntes: number;
         qtdDescontada: number;
         descontoAplicado: number;
         qtdDepois: number;
-      }[] = [];
+      }>();
 
-      let totalEfetivamenteDescontado = 0;
+      let totalProdutoDescontado = 0;
+      let totalProdutoExcedente = 0;
 
-      // Deduct from batches in FEFO order
-      for (const ctrl of activeControles) {
-        if (saldoParaDescontar <= 0) break;
+      // Process each sale in chronological order
+      for (const sale of salesList) {
+        let saldoVendaParaDescontar = sale.qtdNormalizada;
+        let saleDescontado = 0;
+        const controlesAfetadosPelaVenda: number[] = [];
 
-        const ctrlCreatedAtMs = new Date(ctrl.criadoEm).getTime();
-        // Check how much sales occurred AFTER this batch was created
-        const salesAfterBatch = salesList.filter((s) => s.dataHoraTimestamp >= ctrlCreatedAtMs);
-        const totalSalesAfterBatch = salesAfterBatch.reduce((sum, s) => sum + s.qtdNormalizada, 0);
+        // Find controls created before or at the moment of this sale
+        // Rule 16: Venda que ocorreu antes do cadastro do lote NÃO deve reduzir aquele lote
+        const eligibleControles = activeControles.filter((c) => {
+          const ctrlCreatedAtMs = new Date(c.criadoEm).getTime();
+          return !isNaN(ctrlCreatedAtMs) ? sale.dataHoraTimestamp >= ctrlCreatedAtMs : true;
+        });
 
-        if (totalSalesAfterBatch <= 0) {
-          // All sales for this product occurred before this specific batch was added!
+        if (eligibleControles.length === 0) {
+          // No active batches created prior to this sale
+          vendasToSave.push({
+            saleId: sale.saleId,
+            codigo: sale.codigo,
+            dig: sale.dig,
+            codigoOriginal: sale.codigoOriginal,
+            descricao: sale.descricao,
+            embalagem: sale.embalagem,
+            qtdOriginal: sale.qtdOriginal,
+            qtdNormalizada: sale.qtdNormalizada,
+            unidadeNormalizada: sale.unidadeNormalizada,
+            tipoControle: sale.tipoControle,
+            dataVenda: sale.dataVenda,
+            horaVenda: sale.horaVenda,
+            dataHoraTimestamp: sale.dataHoraTimestamp,
+            pdv: sale.pdv,
+            cupom: sale.cupom,
+            seq: sale.seq,
+            operador: sale.operador,
+            cnpjAtacadao: sale.cnpjAtacadao,
+            cnpjCliente: sale.cnpjCliente,
+            sta: sale.sta,
+            trib: sale.trib,
+            leitura: sale.leitura,
+            vlrUnit: sale.vlrUnit,
+            valor: sale.valor,
+            prAtual: sale.prAtual,
+            status: 'SEM_VENCIMENTO_ATIVO',
+            qtdAplicadaVencimento: 0,
+            qtdExcedente: 0,
+            importacaoId,
+            criadoEm: nowIso,
+          });
           continue;
         }
 
-        const qtdAntes = ctrl.quantidadeAtual;
-        const desconto = Math.min(qtdAntes, saldoParaDescontar);
-        const qtdDepois = Math.max(0, qtdAntes - desconto);
+        // Apply FEFO deduction across eligible controls
+        for (const ctrl of eligibleControles) {
+          if (saldoVendaParaDescontar <= 0) break;
+          if (ctrl.quantidadeAtual <= 0) continue;
 
-        saldoParaDescontar -= desconto;
-        totalEfetivamenteDescontado += desconto;
+          const qtdAntes = ctrl.quantidadeAtual;
+          const desconto = Math.min(qtdAntes, saldoVendaParaDescontar);
+          const qtdDepois = Math.max(0, qtdAntes - desconto);
 
-        // Recalculate EMB1 / EMB9
-        let qtdEmb1 = 0;
-        let qtdEmb9 = 0;
-        if (prod.tipoControle === 'UNIDADE') {
-          const emb = converterUnidadesParaEmb1Emb9(qtdDepois, ctrl.unidadesPorCaixa || prod.unidadesPorCaixa || 1);
-          qtdEmb1 = emb.emb1;
-          qtdEmb9 = emb.emb9;
-        } else {
-          qtdEmb1 = Math.floor(qtdDepois / 1000);
-          qtdEmb9 = qtdDepois % 1000;
+          saldoVendaParaDescontar -= desconto;
+          saleDescontado += desconto;
+          totalProdutoDescontado += desconto;
+          controlesAfetadosPelaVenda.push(ctrl.id!);
+
+          // Recalculate EMB1 / EMB9
+          let qtdEmb1 = 0;
+          let qtdEmb9 = 0;
+          if (prod.tipoControle === 'UNIDADE') {
+            const emb = converterUnidadesParaEmb1Emb9(qtdDepois, ctrl.unidadesPorCaixa || prod.unidadesPorCaixa || 1);
+            qtdEmb1 = emb.emb1;
+            qtdEmb9 = emb.emb9;
+          } else {
+            qtdEmb1 = Math.floor(qtdDepois / 1000);
+            qtdEmb9 = qtdDepois % 1000;
+          }
+
+          ctrl.quantidadeAtual = qtdDepois;
+          ctrl.qtdEmb1 = qtdEmb1;
+          ctrl.qtdEmb9 = qtdEmb9;
+          ctrl.status = calcularStatusVencimento(ctrl.dataVencimento);
+          ctrl.atualizadoEm = nowIso;
+          ctrl.ultimaVendaIdentificada = (ctrl.ultimaVendaIdentificada || 0) + desconto;
+          ctrl.dataUltimaMovimentacao = nowBr;
+
+          if (!controlesToUpdate.some((c) => c.id === ctrl.id)) {
+            controlesToUpdate.push(ctrl);
+          }
+
+          // Accumulate batch audit details
+          const existingAudit = detalhesAuditoriaMap.get(ctrl.id!);
+          if (existingAudit) {
+            existingAudit.qtdDescontada += desconto;
+            existingAudit.descontoAplicado += desconto;
+            existingAudit.qtdDepois = qtdDepois;
+          } else {
+            detalhesAuditoriaMap.set(ctrl.id!, {
+              controleId: ctrl.id!,
+              dataVencimento: ctrl.dataVencimento,
+              qtdAntes,
+              qtdDescontada: desconto,
+              descontoAplicado: desconto,
+              qtdDepois,
+            });
+          }
+
+          // Add movement history record
+          await db.historicoMovimentacao.add({
+            controleVencimentoId: ctrl.id!,
+            importacaoId,
+            dataHora: nowBr,
+            estoqueAnteriorEmb1: String(Math.floor(qtdAntes / (ctrl.unidadesPorCaixa || 1))),
+            estoqueAnteriorEmb9: String(qtdAntes % (ctrl.unidadesPorCaixa || 1)),
+            estoqueAtualEmb1: String(qtdEmb1),
+            estoqueAtualEmb9: String(qtdEmb9),
+            venda30DiasAnterior: String(prod.venda30Dias || '0'),
+            venda30DiasAtual: String(prod.venda30Dias || '0'),
+            vendaIdentificada: desconto,
+            movimentacaoIdentificada: desconto,
+            quantidadeAnterior: qtdAntes,
+            quantidadeNova: qtdDepois,
+            alertaDivergencia: false,
+          });
         }
 
-        ctrl.quantidadeAtual = qtdDepois;
-        ctrl.qtdEmb1 = qtdEmb1;
-        ctrl.qtdEmb9 = qtdEmb9;
-        ctrl.status = calcularStatusVencimento(ctrl.dataVencimento);
-        ctrl.atualizadoEm = nowIso;
-        ctrl.ultimaVendaIdentificada = desconto;
-        ctrl.dataUltimaMovimentacao = nowBr;
+        const saleExcedente = Math.max(0, saldoVendaParaDescontar);
+        if (saleExcedente > 0) {
+          totalProdutoExcedente += saleExcedente;
+          countVendasExcedentes++;
+          countDivergencias++;
 
-        controlesToUpdate.push(ctrl);
+          const motivoExcesso = `A venda (${sale.qtdNormalizada} ${prod.tipoControle === 'PESO' ? 'g' : 'un'}) excedeu o saldo do lote em ${saleExcedente} ${
+            prod.tipoControle === 'PESO' ? 'g' : 'un'
+          }. O lote foi zerado e o excesso registrado como divergência.`;
 
-        detalhesAuditoria.push({
-          controleId: ctrl.id!,
-          dataVencimento: ctrl.dataVencimento,
-          qtdAntes,
-          qtdDescontada: desconto,
-          descontoAplicado: desconto,
-          qtdDepois,
-        });
-
-        // Add movement history record
-        await db.historicoMovimentacao.add({
-          controleVencimentoId: ctrl.id!,
-          importacaoId,
-          dataHora: nowBr,
-          estoqueAnteriorEmb1: String(Math.floor(qtdAntes / (ctrl.unidadesPorCaixa || 1))),
-          estoqueAnteriorEmb9: String(qtdAntes % (ctrl.unidadesPorCaixa || 1)),
-          estoqueAtualEmb1: String(qtdEmb1),
-          estoqueAtualEmb9: String(qtdEmb9),
-          venda30DiasAnterior: String(prod.venda30Dias || '0'),
-          venda30DiasAtual: String(prod.venda30Dias || '0'),
-          vendaIdentificada: desconto,
-          movimentacaoIdentificada: desconto,
-          quantidadeAnterior: qtdAntes,
-          quantidadeNova: qtdDepois,
-          alertaDivergencia: false,
-        });
-      }
-
-      // Check if sales exceeded controlled quantity (Rule 19: Venda maior que a quantidade controlada)
-      const excedente = Math.max(0, saldoParaDescontar);
-      const isExcedente = excedente > 0;
-
-      if (isExcedente) {
-        countVendasExcedentes++;
-        countDivergencias++;
-
-        const motivoExcesso = `A venda identificada (${totalVendasNormalizadasAplicaveis}) excedeu a quantidade controlada (${totalEstoqueControladoAntes}) em ${excedente} ${
-          prod.tipoControle === 'PESO' ? 'g' : 'un'
-        }. O saldo controlado foi zerado e o excesso registrado como divergência.`;
-
-        // Flag the last control with divergence alert
-        if (activeControles.length > 0) {
-          const lastCtrl = activeControles[activeControles.length - 1];
-          lastCtrl.alertaMovimentacaoSuperior = true;
-          lastCtrl.movimentacaoExcedente = excedente;
-          lastCtrl.alertaDivergencia = true;
-          lastCtrl.motivoDivergencia = motivoExcesso;
-          controlesToUpdate.push(lastCtrl);
+          divergenciasToSave.push({
+            saleId: sale.saleId,
+            codigo: sale.codigo,
+            dig: sale.dig,
+            codigoOriginal: sale.codigoOriginal,
+            descricao: sale.descricao,
+            embalagem: sale.embalagem,
+            qtd: saleExcedente,
+            dataVenda: sale.dataVenda,
+            horaVenda: sale.horaVenda,
+            pdv: sale.pdv,
+            cupom: sale.cupom,
+            seq: sale.seq,
+            status: 'VENDA_EXCEDENTE',
+            motivo: motivoExcesso,
+            importacaoId,
+            criadoEm: nowIso,
+          });
         }
 
-        // Add divergence record
-        divergenciasToSave.push({
-          saleId: salesList[0]?.saleId || `${codigo}_excesso`,
-          codigo,
-          dig: prod.dig,
-          codigoOriginal: prod.codigoOriginal,
-          descricao: prod.descricao,
-          embalagem: prod.embalagem,
-          qtd: excedente,
-          dataVenda: salesList[0]?.dataVenda || nowBr,
-          horaVenda: salesList[0]?.horaVenda || '',
-          pdv: salesList[0]?.pdv || '',
-          cupom: salesList[0]?.cupom || '',
-          seq: salesList[0]?.seq || '',
-          status: 'VENDA_EXCEDENTE',
-          motivo: motivoExcesso,
-          importacaoId,
-          criadoEm: nowIso,
-        });
-      }
+        if (saleDescontado > 0) {
+          countVendasAplicadas++;
+        }
 
-      if (totalEfetivamenteDescontado > 0) {
-        countVendasAplicadas += salesList.length;
-      }
-
-      // Register FEFO Audit record
-      auditoriasToSave.push({
-        importacaoId,
-        produtoId: prod.id,
-        codigo: prod.codigo,
-        dig: prod.dig,
-        descricao: prod.descricao,
-        tipoControle: prod.tipoControle,
-        vendaTotalAplicada: totalEfetivamenteDescontado,
-        vendaExcedente: excedente,
-        saleIds: salesList.map((s) => s.saleId),
-        detalhesVencimentos: detalhesAuditoria,
-        dataHora: nowBr,
-        criadoEm: nowIso,
-      });
-
-      // Save processed sales records
-      salesList.forEach((s) => {
         vendasToSave.push({
-          saleId: s.saleId,
-          codigo: s.codigo,
-          dig: s.dig,
-          codigoOriginal: s.codigoOriginal,
-          descricao: s.descricao,
-          embalagem: s.embalagem,
-          qtdOriginal: s.qtdOriginal,
-          qtdNormalizada: s.qtdNormalizada,
-          unidadeNormalizada: s.unidadeNormalizada,
-          tipoControle: s.tipoControle,
-          dataVenda: s.dataVenda,
-          horaVenda: s.horaVenda,
-          dataHoraTimestamp: s.dataHoraTimestamp,
-          pdv: s.pdv,
-          cupom: s.cupom,
-          seq: s.seq,
-          operador: s.operador,
-          cnpjAtacadao: s.cnpjAtacadao,
-          cnpjCliente: s.cnpjCliente,
-          sta: s.sta,
-          trib: s.trib,
-          leitura: s.leitura,
-          vlrUnit: s.vlrUnit,
-          valor: s.valor,
-          prAtual: s.prAtual,
-          status: isExcedente ? 'VENDA_EXCEDENTE' : 'PROCESSADA',
-          qtdAplicadaVencimento: totalEfetivamenteDescontado,
-          qtdExcedente: excedente,
-          controlesAfetados: detalhesAuditoria.map((d) => d.controleId),
-          motivoDivergencia: isExcedente ? `Venda excedeu o saldo do lote em ${excedente}.` : undefined,
+          saleId: sale.saleId,
+          codigo: sale.codigo,
+          dig: sale.dig,
+          codigoOriginal: sale.codigoOriginal,
+          descricao: sale.descricao,
+          embalagem: sale.embalagem,
+          qtdOriginal: sale.qtdOriginal,
+          qtdNormalizada: sale.qtdNormalizada,
+          unidadeNormalizada: sale.unidadeNormalizada,
+          tipoControle: sale.tipoControle,
+          dataVenda: sale.dataVenda,
+          horaVenda: sale.horaVenda,
+          dataHoraTimestamp: sale.dataHoraTimestamp,
+          pdv: sale.pdv,
+          cupom: sale.cupom,
+          seq: sale.seq,
+          operador: sale.operador,
+          cnpjAtacadao: sale.cnpjAtacadao,
+          cnpjCliente: sale.cnpjCliente,
+          sta: sale.sta,
+          trib: sale.trib,
+          leitura: sale.leitura,
+          vlrUnit: sale.vlrUnit,
+          valor: sale.valor,
+          prAtual: sale.prAtual,
+          status: saleExcedente > 0 ? 'VENDA_EXCEDENTE' : 'PROCESSADA',
+          qtdAplicadaVencimento: saleDescontado,
+          qtdExcedente: saleExcedente,
+          controlesAfetados: controlesAfetadosPelaVenda,
+          motivoDivergencia: saleExcedente > 0 ? `Venda excedeu o saldo do lote em ${saleExcedente}.` : undefined,
           importacaoId,
           criadoEm: nowIso,
         });
-      });
+      }
+
+      // Register FEFO Audit record for this product
+      if (detalhesAuditoriaMap.size > 0 || totalProdutoExcedente > 0) {
+        auditoriasToSave.push({
+          importacaoId,
+          produtoId: prod.id,
+          codigo: prod.codigo,
+          dig: prod.dig,
+          descricao: prod.descricao,
+          tipoControle: prod.tipoControle,
+          vendaTotalAplicada: totalProdutoDescontado,
+          vendaExcedente: totalProdutoExcedente,
+          saleIds: salesList.map((s) => s.saleId),
+          detalhesVencimentos: Array.from(detalhesAuditoriaMap.values()),
+          dataHora: nowBr,
+          criadoEm: nowIso,
+        });
+      }
     }
 
     onProgress?.(85, 'Gravando auditorias e atualizando banco de dados...');
