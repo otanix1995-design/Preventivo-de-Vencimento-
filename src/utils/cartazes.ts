@@ -44,9 +44,21 @@ export function extrairEmbalagemDescricao(descricao: string): string {
 }
 
 /**
- * Extracts brand from description or buyer info
+ * Extracts brand from description or buyer info (accepts string or Produto object)
  */
-export function extrairMarca(descricao: string, compradorFilial?: string): string {
+export function extrairMarca(descricaoOrProd?: string | Produto | null, compradorFilial?: string): string {
+  if (!descricaoOrProd) return '';
+
+  let descricao = '';
+  let comprador = compradorFilial;
+
+  if (typeof descricaoOrProd === 'object') {
+    descricao = descricaoOrProd.descricao || '';
+    comprador = comprador || descricaoOrProd.compradorFilial;
+  } else {
+    descricao = String(descricaoOrProd || '');
+  }
+
   const commonBrands = [
     'BOB ESPONJA', 'BATAVO', 'ELEGE', 'ELEGÊ', 'AURORA', 'SEARA', 'SADIA',
     'PERDIGAO', 'PERDIGÃO', 'FRIMESA', 'ITAMBE', 'ITAMBÉ', 'NESTLE', 'NESTLÉ',
@@ -56,15 +68,15 @@ export function extrairMarca(descricao: string, compradorFilial?: string): strin
     'CHAMYTO', 'YAKULT', 'ACTIVIA', 'NINHO', 'CORPO CLIN', 'PAULISTA', 'POCOES'
   ];
 
-  const descUpper = (descricao || '').toUpperCase();
+  const descUpper = descricao.toUpperCase();
   for (const b of commonBrands) {
     if (new RegExp(`\\b${b}\\b`, 'i').test(descUpper)) {
       return b;
     }
   }
 
-  if (compradorFilial) {
-    const compUpper = compradorFilial.toUpperCase();
+  if (comprador) {
+    const compUpper = String(comprador).toUpperCase();
     for (const b of commonBrands) {
       if (compUpper.includes(b)) {
         return b;

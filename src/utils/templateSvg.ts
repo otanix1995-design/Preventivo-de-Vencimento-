@@ -245,8 +245,17 @@ export function getSvgTemplateDataUrl(
       break;
   }
 
-  const base64 = btoa(unescape(encodeURIComponent(svg)));
-  const dataUrl = `data:image/svg+xml;base64,${base64}`;
-  cachedDataUrls[key] = dataUrl;
-  return dataUrl;
+  try {
+    const encoded = encodeURIComponent(svg).replace(/%([0-9A-F]{2})/g, (_, p1) =>
+      String.fromCharCode(parseInt(p1, 16))
+    );
+    const base64 = btoa(encoded);
+    const dataUrl = `data:image/svg+xml;base64,${base64}`;
+    cachedDataUrls[key] = dataUrl;
+    return dataUrl;
+  } catch {
+    const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    cachedDataUrls[key] = dataUrl;
+    return dataUrl;
+  }
 }

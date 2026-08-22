@@ -22,12 +22,22 @@ export const CartazTaggVisual: React.FC<CartazTaggVisualProps> = ({
   const bgImage = getTemplateImage('SINGLE_TAG');
   const showContent = Boolean(item && !isTemplateLimpo);
 
-  const parsed = item ? decomporDescricaoTag(item.descricao, item.marca) : null;
-  const priceVal = item && item.precoVenda !== null && item.precoVenda !== undefined ? item.precoVenda : 0;
+  const parsed = item?.descricao ? decomporDescricaoTag(item.descricao, item.marca) : null;
+  
+  let priceVal = 0;
+  if (item && item.precoVenda !== null && item.precoVenda !== undefined) {
+    if (typeof item.precoVenda === 'number' && !isNaN(item.precoVenda)) {
+      priceVal = item.precoVenda;
+    } else if (typeof item.precoVenda === 'string') {
+      const parsedNum = parseFloat(String(item.precoVenda).replace(',', '.'));
+      priceVal = !isNaN(parsedNum) ? parsedNum : 0;
+    }
+  }
+
   const priceStr = priceVal.toFixed(2);
-  const [intPart, decPart] = priceStr.split('.');
+  const [intPart = '0', decPart = '00'] = priceStr.split('.');
   const cleanCod = item ? formatarCodigoSemZeros(item.codigo) : '';
-  const cleanDig = item && item.dig ? item.dig.replace(/^0+/, '') || item.dig : '0';
+  const cleanDig = item && item.dig ? String(item.dig).replace(/^0+/, '') || String(item.dig) : '0';
 
   const embRaw = (item?.embalagem || 'UN').trim();
   const embFmt = embRaw.startsWith('(') ? embRaw : `(${embRaw})`;
@@ -35,11 +45,15 @@ export const CartazTaggVisual: React.FC<CartazTaggVisualProps> = ({
   // Formatted expiration date (Validade)
   const validadeFmt = item?.dataVencimento
     ? (() => {
-        const parts = item.dataVencimento.split('-');
-        if (parts.length === 3) {
-          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        try {
+          const parts = String(item.dataVencimento).split('-');
+          if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+          return String(item.dataVencimento);
+        } catch {
+          return null;
         }
-        return item.dataVencimento;
       })()
     : null;
 

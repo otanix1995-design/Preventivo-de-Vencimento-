@@ -20,6 +20,7 @@ import { ModalGerenciarEan } from './components/ModalGerenciarEan';
 import { PdfExportModal } from './components/PdfExportModal';
 import { DetachedHistoryModal } from './components/DetachedHistoryModal';
 import { AlertExpiredModal } from './components/AlertExpiredModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'produtos' | 'catalogo' | 'cartazes'>('dashboard');
@@ -234,51 +235,53 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-6 overflow-x-hidden box-border">
-        {activeTab === 'dashboard' ? (
-          <Dashboard
-            controles={controles}
-            produtosMap={produtosMap}
-            onNavigateToProdutos={(filter) => {
-              setActiveTab('produtos');
-            }}
-            onOpenCadastro={() => {
-              setSelectedProdutoForCadastro(null);
-              setSelectedControleForEdit(null);
-              setIsCadastroOpen(true);
-            }}
-            onOpenImport={() => setIsImportOpen(true)}
-            onOpenScanner={() => {
-              setCartazesFoundCallback(null);
-              setIsScannerOpen(true);
-            }}
-          />
-        ) : activeTab === 'produtos' ? (
-          <TabelaProdutos
-            controles={controles}
-            produtosMap={produtosMap}
-            onEditControle={handleEditControle}
-            onDeleteControle={handleDeleteControle}
-            onViewHistory={handleViewHistory}
-            onUpdatePrecoTrabalhado={handleUpdatePrecoTrabalhado}
-          />
-        ) : activeTab === 'catalogo' ? (
-          <TabelaCatalogoProdutos
-            produtos={produtosList}
-            controlesMap={controlesMap}
-            onCadastrarVencimento={(produto) => {
-              setSelectedProdutoForCadastro(produto);
-              setSelectedControleForEdit(null);
-              setIsCadastroOpen(true);
-            }}
-            onOpenEanManager={() => setIsEanModalOpen(true)}
-          />
-        ) : (
-          <ModuloCartazes
-            produtos={produtosList}
-            controles={controles}
-            onOpenScanner={handleOpenScannerForCartazes}
-          />
-        )}
+        <ErrorBoundary fallbackTitle="Erro ao carregar aba selecionada">
+          {activeTab === 'dashboard' ? (
+            <Dashboard
+              controles={controles}
+              produtosMap={produtosMap}
+              onNavigateToProdutos={(filter) => {
+                setActiveTab('produtos');
+              }}
+              onOpenCadastro={() => {
+                setSelectedProdutoForCadastro(null);
+                setSelectedControleForEdit(null);
+                setIsCadastroOpen(true);
+              }}
+              onOpenImport={() => setIsImportOpen(true)}
+              onOpenScanner={() => {
+                setCartazesFoundCallback(null);
+                setIsScannerOpen(true);
+              }}
+            />
+          ) : activeTab === 'produtos' ? (
+            <TabelaProdutos
+              controles={controles}
+              produtosMap={produtosMap}
+              onEditControle={handleEditControle}
+              onDeleteControle={handleDeleteControle}
+              onViewHistory={handleViewHistory}
+              onUpdatePrecoTrabalhado={handleUpdatePrecoTrabalhado}
+            />
+          ) : activeTab === 'catalogo' ? (
+            <TabelaCatalogoProdutos
+              produtos={produtosList}
+              controlesMap={controlesMap}
+              onCadastrarVencimento={(produto) => {
+                setSelectedProdutoForCadastro(produto);
+                setSelectedControleForEdit(null);
+                setIsCadastroOpen(true);
+              }}
+              onOpenEanManager={() => setIsEanModalOpen(true)}
+            />
+          ) : (
+            <ModuloCartazes
+              produtos={produtosList}
+              controles={controles}
+              onOpenScanner={handleOpenScannerForCartazes}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}
