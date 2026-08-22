@@ -105,11 +105,11 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
       const { kg, g } = gramasParaKgEGramas(controle.quantidadeAtual);
       setQuilos(String(kg));
       setGramas(String(g));
-      setQtdEmb1(controle.qtdEmb1 !== undefined ? String(controle.qtdEmb1) : '0');
-      setQtdEmb9(controle.qtdEmb9 !== undefined ? String(controle.qtdEmb9) : '0');
+      setQtdEmb1(String(kg));
+      setQtdEmb9(String(g));
     } else {
       const uBox = controle.unidadesPorCaixa || (prod ? extrairUnidadesPorCaixa(prod.embalagem) : 1);
-      if (controle.qtdEmb1 !== undefined && controle.qtdEmb9 !== undefined) {
+      if (controle.qtdEmb1 !== undefined && controle.qtdEmb9 !== undefined && (controle.qtdEmb1 > 0 || controle.qtdEmb9 > 0)) {
         setQtdEmb1(String(controle.qtdEmb1));
         setQtdEmb9(String(controle.qtdEmb9));
       } else {
@@ -191,14 +191,16 @@ export const CadastroVencimentoModal: React.FC<CadastroVencimentoModalProps> = (
         produto.tipoControle === 'NAO_IDENTIFICADO' ? 'UNIDADE' : produto.tipoControle;
 
       let qtdCalculada = 0;
-      const e1 = parseInt(qtdEmb1, 10) || 0;
-      const e9 = parseInt(qtdEmb9, 10) || 0;
+      let e1 = parseInt(qtdEmb1, 10) || 0;
+      let e9 = parseInt(qtdEmb9, 10) || 0;
       const uBox = extrairUnidadesPorCaixa(produto.embalagem);
 
       if (tipoControle === 'PESO') {
         const kgNum = parseFloat(quilos.replace(',', '.')) || 0;
         const gNum = parseInt(gramas, 10) || 0;
         qtdCalculada = converterParaGramas(kgNum, gNum);
+        e1 = Math.floor(qtdCalculada / 1000);
+        e9 = qtdCalculada % 1000;
       } else {
         qtdCalculada = converterEmb1Emb9ParaUnidades(e1, e9, uBox);
       }

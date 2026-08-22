@@ -4,6 +4,7 @@ import { db } from './db/database';
 import type { Produto, ControleVencimento, StatusVencimento } from './types';
 import { calcularStatusVencimento } from './utils/date';
 import { buscarProdutoPorEanOuCodigo } from './utils/productSearch';
+import { extrairUnidadesPorCaixa, converterUnidadesParaEmb1Emb9 } from './utils/packaging';
 
 // Components
 import { Header } from './components/Header';
@@ -57,23 +58,53 @@ export default function App() {
     return map;
   }, [produtosList]);
 
-  // Dynamically update status based on current date whenever loaded
+  // Dynamically update status and reconcile EMB1/EMB9 based on current date whenever loaded
   const controles = useMemo(() => {
     if (!rawControles) return [];
 
     return rawControles.map((c) => {
       const currentStatus = calcularStatusVencimento(c.dataVencimento);
+      let needsUpdate = false;
+      const updates: Partial<ControleVencimento> = {};
+
       if (currentStatus !== c.status) {
-        // Sync database status if changed due to date progression
+        updates.status = currentStatus;
+        needsUpdate = true;
+      }
+
+      // Reconcile missing or zeroed qtdEmb1/qtdEmb9 if control has positive quantity
+      if (
+        c.quantidadeAtual > 0 &&
+        (c.qtdEmb1 === undefined || c.qtdEmb1 === null || c.qtdEmb1 === 0) &&
+        (c.qtdEmb9 === undefined || c.qtdEmb9 === null || c.qtdEmb9 === 0)
+      ) {
+        const prod = produtosMap.get(c.produtoId);
+        const isPeso = c.unidadeControle === 'PESO' || prod?.tipoControle === 'PESO';
+
+        if (isPeso) {
+          updates.qtdEmb1 = Math.floor(c.quantidadeAtual / 1000);
+          updates.qtdEmb9 = c.quantidadeAtual % 1000;
+          needsUpdate = true;
+        } else {
+          const uBox = c.unidadesPorCaixa || (prod ? extrairUnidadesPorCaixa(prod.embalagem) : 1);
+          const { emb1, emb9 } = converterUnidadesParaEmb1Emb9(c.quantidadeAtual, uBox);
+          updates.qtdEmb1 = emb1;
+          updates.qtdEmb9 = emb9;
+          needsUpdate = true;
+        }
+      }
+
+      if (needsUpdate) {
         db.controleVencimento.update(c.id!, {
-          status: currentStatus,
+          ...updates,
           atualizadoEm: new Date().toISOString(),
         });
-        return { ...c, status: currentStatus };
+        return { ...c, ...updates };
       }
+
       return c;
     });
-  }, [rawControles]);
+  }, [rawControles, produtosMap]);
 
   // Map expiration controls by product ID
   const controlesMap = useMemo(() => {

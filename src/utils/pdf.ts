@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { ControleVencimento, Produto, FiltroPdfOptions } from '../types';
 import { formatarDataBR, formatarMoeda, getPriorityColor } from './date';
+import { extrairUnidadesPorCaixa, converterUnidadesParaEmb1Emb9, identificarTipoEmbalagem } from './packaging';
 
 export interface ItemRelatorioPdf {
   controle: ControleVencimento;
@@ -79,15 +80,43 @@ export function gerarRelatorioPdf(
     const priorityCfg = getPriorityColor(c.dataVencimento, c.precoTrabalhado);
 
     // Get quantity for EMB1 and EMB9
-    const emb1Val =
-      c.qtdEmb1 !== undefined && c.qtdEmb1 !== null
-        ? String(c.qtdEmb1)
-        : p?.estoqueEmb1 || '-';
+    let emb1Val = '-';
+    let emb9Val = '-';
 
-    const emb9Val =
-      c.qtdEmb9 !== undefined && c.qtdEmb9 !== null
-        ? String(c.qtdEmb9)
-        : p?.estoqueEmb9 || '-';
+    const isPeso =
+      c.unidadeControle === 'PESO' ||
+      p?.tipoControle === 'PESO' ||
+      (p?.embalagem && identificarTipoEmbalagem(p.embalagem) === 'PESO');
+
+    if (c.quantidadeAtual > 0) {
+      if (isPeso) {
+        // For weight products (grams): EMB1 = kg, EMB9 = remaining grams
+        const kg = Math.floor(c.quantidadeAtual / 1000);
+        const g = c.quantidadeAtual % 1000;
+        emb1Val = String(kg);
+        emb9Val = String(g);
+      } else {
+        // For unit/box products
+        const uBox = c.unidadesPorCaixa || (p ? extrairUnidadesPorCaixa(p.embalagem) : 1);
+        if (c.qtdEmb1 !== undefined && c.qtdEmb9 !== undefined && (c.qtdEmb1 > 0 || c.qtdEmb9 > 0)) {
+          emb1Val = String(c.qtdEmb1);
+          emb9Val = String(c.qtdEmb9);
+        } else {
+          const { emb1, emb9 } = converterUnidadesParaEmb1Emb9(c.quantidadeAtual, uBox);
+          emb1Val = String(emb1);
+          emb9Val = String(emb9);
+        }
+      }
+    } else if (c.qtdEmb1 !== undefined && c.qtdEmb9 !== undefined) {
+      emb1Val = String(c.qtdEmb1);
+      emb9Val = String(c.qtdEmb9);
+    } else if (p?.estoqueEmb1 || p?.estoqueEmb9) {
+      emb1Val = p?.estoqueEmb1 || '0';
+      emb9Val = p?.estoqueEmb9 || '0';
+    } else {
+      emb1Val = '0';
+      emb9Val = '0';
+    }
 
     return [
       p?.codigo || c.codigo || '-',
